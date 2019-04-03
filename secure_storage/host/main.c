@@ -26,8 +26,11 @@
  */
 
 #include <err.h>
+#include <math.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/time.h>
 
 /* OP-TEE TEE client API (built by optee_client) */
 #include <tee_client_api.h>
@@ -165,75 +168,126 @@ TEEC_Result delete_secure_object(struct test_ctx *ctx, char *id)
 }
 
 #define TEST_OBJECT_SIZE	7000
+#define NUM_TESTS           100
+
+double avg(double* arr, size_t total_size)
+{
+    double ret = 0.0;
+    double num_elements = total_size / sizeof(*arr);
+    for (int i = 0; i < num_elements; i++)
+        ret += *(arr + i);
+    return ret / num_elements; 
+}
+
+double stdev(double* arr, size_t total_size)
+{
+    double sq_sum = 0.0;
+    double num_elements = total_size / sizeof(*arr);
+    for (int i = 0; i < num_elements; i++)
+        sq_sum += pow(*(arr + i), 2);
+    return sqrt(sq_sum / num_elements - pow(avg(arr, total_size), 2));
+}
 
 int main(int argc, char *argv[])
 {
 	struct test_ctx ctx;
-	char obj1_id[] = "object#1";		/* string identification for the object */
-	char obj2_id[] = "object#2";		/* string identification for the object */
+    struct timeval t1, t2;
+	char obj1_id[] = "object#1";		
+	char obj2_id[] = "object#2";		
 	char obj1_data[TEST_OBJECT_SIZE];
 	char read_data[TEST_OBJECT_SIZE];
+    double t_create[NUM_TESTS], t_read[NUM_TESTS], t_delete[NUM_TESTS];
+    double t_create_ns[NUM_TESTS], t_read_ns[NUM_TESTS];
+    double t_delete_ns[NUM_TESTS];
 	TEEC_Result res;
 
-	printf("Prepare session with the TA\n");
+	printf("CSG-CSEM: Prepare session with the TA\n");
 	prepare_tee_session(&ctx);
 
-	/*
-	 * Create object, read it, delete it.
-	 */
-	printf("\nTest on object \"%s\"\n", obj1_id);
+    // Secure Storage Benchmarking
+	printf("\nCSG-CSEM: Secure Storage Benchmarking \"%s\"\n", obj1_id);
 
-	printf("- Create and load object in the TA secure storage\n");
+    for (u_int32_t i = 0; i < NUM_TESTS; ++i) {
+        gettimeofday(&t1, NULL);
+        memset(obj1_data, 0xA1, sizeof(obj1_data));
+        res = write_secure_object(&ctx, obj1_id,
+                      obj1_data, sizeof(obj1_data));
+        gettimeofday(&t2, NULL);
+        if (res != TEEC_SUCCESS)
+            errx(1, "Failed to create an object in the secure storage");
+        t_create[i] = (t2.tv_sec - t1.tv_sec) * 1000.0;
+        t_create[i] += (t2.tv_usec - t1.tv_usec) / 1000.0;
 
-	memset(obj1_data, 0xA1, sizeof(obj1_data));
+        // Read
+        gettimeofday(&t1, NULL);
+        res = read_secure_object(&ctx, obj1_id,
+                     read_data, sizeof(read_data));
+        gettimeofday(&t2, NULL);
+        t_read[i] = (t2.tv_sec - t1.tv_sec) * 1000.0;
+        t_read[i] += (t2.tv_usec - t1.tv_usec) / 1000.0;
+        if (res != TEEC_SUCCESS)
+            errx(1, "Failed to read an object from the secure storage");
+        if (memcmp(obj1_data, read_data, sizeof(obj1_data)))
+            errx(1, "Unexpected content found in secure storage");
 
-	res = write_secure_object(&ctx, obj1_id,
-				  obj1_data, sizeof(obj1_data));
-	if (res != TEEC_SUCCESS)
-		errx(1, "Failed to create an object in the secure storage");
+        // Delete
+        gettimeofday(&t1, NULL);
+        res = delete_secure_object(&ctx, obj1_id);
+        gettimeofday(&t2, NULL);
+        t_delete[i] = (t2.tv_sec - t1.tv_sec) * 1000.0;
+        t_delete[i] += (t2.tv_usec - t1.tv_usec) / 1000.0;
+        if (res != TEEC_SUCCESS)
+            errx(1, "Failed to delete the object: 0x%x", res);
+    }
 
-	printf("- Read back the object\n");
+    // Non-Secure Storage Benchmarking
+	printf("\nCSG-CSEM: Non-Secure Storage Benchmarking \n");
 
-	res = read_secure_object(&ctx, obj1_id,
-				 read_data, sizeof(read_data));
-	if (res != TEEC_SUCCESS)
-		errx(1, "Failed to read an object from the secure storage");
-	if (memcmp(obj1_data, read_data, sizeof(obj1_data)))
-		errx(1, "Unexpected content found in secure storage");
+    for (u_int32_t i = 0; i < NUM_TESTS; ++i) {
+        // Create Object in Non-Secure Storage
+        gettimeofday(&t1, NULL);
+        char* obj_ns = malloc(TEST_OBJECT_SIZE * sizeof(*obj_ns));
+        memset(obj_ns, 0xA1, sizeof(obj_ns));
+        gettimeofday(&t2, NULL);
+        t_create_ns[i] = (t2.tv_sec - t1.tv_sec) * 1000.0;
+        t_create_ns[i] += (t2.tv_usec - t1.tv_usec) / 1000.0;
 
-	printf("- Delete the object\n");
+        // Read Object from Non-Secure Storage
+        gettimeofday(&t1, NULL);
+        char* new_obj_ns = malloc(TEST_OBJECT_SIZE * sizeof(*new_obj_ns));
+        strncpy(new_obj_ns, obj_ns, sizeof(obj_ns));
+        gettimeofday(&t2, NULL);
+        t_read_ns[i] = (t2.tv_sec - t1.tv_sec) * 1000.0;
+        t_read_ns[i] += (t2.tv_usec - t1.tv_usec) / 1000.0;
 
-	res = delete_secure_object(&ctx, obj1_id);
-	if (res != TEEC_SUCCESS)
-		errx(1, "Failed to delete the object: 0x%x", res);
 
-	/*
-	 * Non volatile storage: create object2 if not found, delete it if found
-	 */
-	printf("\nTest on object \"%s\"\n", obj2_id);
+        // Delete Object from Non-Secure Storage
+        gettimeofday(&t1, NULL);
+        memset(obj_ns, '\0', sizeof(obj_ns));
+        free(obj_ns);
+        gettimeofday(&t2, NULL);
+        t_delete_ns[i] = (t2.tv_sec - t1.tv_sec) * 1000.0;
+        t_delete_ns[i] += (t2.tv_usec - t1.tv_usec) / 1000.0;
+    }
 
-	res = read_secure_object(&ctx, obj2_id,
-				  read_data, sizeof(read_data));
-	if (res != TEEC_SUCCESS && res != TEEC_ERROR_ITEM_NOT_FOUND)
-		errx(1, "Unexpected status when reading an object : 0x%x", res);
-
-	if (res == TEEC_ERROR_ITEM_NOT_FOUND) {
-		char data[] = "This is data stored in the secure storage.\n";
-
-		printf("- Object not found in TA secure storage, create it.\n");
-
-		res = write_secure_object(&ctx, obj2_id,
-					  data, sizeof(data));
-		if (res != TEEC_SUCCESS)
-			errx(1, "Failed to create/load an object");
-
-	} else if (res == TEEC_SUCCESS) {
-		printf("- Object found in TA secure storage, delete it.\n");
-
-		res = delete_secure_object(&ctx, obj2_id);
-		if (res != TEEC_SUCCESS)
-			errx(1, "Failed to delete an object");
-	}
+    // Print Times
+    printf("\nSTORAGE BENCHMARKING (avg (ms), stdev): SECURE / NSECURE\n");
+    printf("Create: \t %f, %f \t %f, %f \n",
+            avg(t_create, sizeof(t_create)),
+            stdev(t_create, sizeof(t_create)),
+            avg(t_create_ns, sizeof(t_create_ns)),
+            stdev(t_create_ns, sizeof(t_create_ns)));
+    printf("Read: \t\t %f, %f \t %f, %f \n",
+            avg(t_read, sizeof(t_read)),
+            stdev(t_read, sizeof(t_read)),
+            avg(t_read_ns, sizeof(t_read_ns)),
+            stdev(t_read_ns, sizeof(t_read_ns)));
+    printf("Delete: \t %f, %f \t %f, %f \n",
+            avg(t_delete, sizeof(t_delete)),
+            stdev(t_delete, sizeof(t_delete)),
+            avg(t_delete_ns, sizeof(t_delete_ns)),
+            stdev(t_delete_ns, sizeof(t_delete_ns)));
+    printf("---------------------------------------------------------\n");
 
 	printf("\nWe're done, close and release TEE resources\n");
 	terminate_tee_session(&ctx);
