@@ -29,7 +29,7 @@
 
 /* UUID of the trusted application */
 #define TA_TCP2EXT_UUID \
-		{ 0xab3e985, 0xc096, 0x4d22, \
+		{ 0xab3e985c, 0xc096, 0x4d22, \
 			{ 0xb4, 0x60, 0x5d, 0x9c, 0x17, 0xd7, 0x07, 0x13 } }
 /*
  * TA_SECURE_STORAGE_CMD_READ_RAW - Create and fill a secure storage file
