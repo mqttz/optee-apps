@@ -19,7 +19,7 @@ out/
 random
 docs
 acipher
-aes
 hotp
+aes/host/optee_example_aes
 hello_world/host/optee_example_hello_world
 secure_storage/host/optee_example_secure_storage

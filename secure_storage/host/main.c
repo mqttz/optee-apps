@@ -27,6 +27,7 @@
 
 #include <err.h>
 #include <math.h>
+#include <openssl/rand.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
