@@ -23,7 +23,7 @@
 #define ENCODE			1
 
 #define CLEAR_TEXT_PATH         "clear.txt"
-#define NUM_TESTS               1000
+#define NUM_TESTS               100
 
 /* TEE resources */
 struct test_ctx {
@@ -219,9 +219,6 @@ void set_key(struct test_ctx *ctx, char *key, size_t key_sz)
 	uint32_t origin;
 	TEEC_Result res;
 
-    printf("Here is the key: %s\n", key);
-    printf("Here is the key size: %i\n", key_sz);
-
 	memset(&op, 0, sizeof(op));
 	op.paramTypes = TEEC_PARAM_TYPES(TEEC_MEMREF_TEMP_INPUT,
 					 TEEC_NONE, TEEC_NONE, TEEC_NONE);
@@ -282,7 +279,8 @@ int main(void)
     // Initialise variables
     struct timeval t1, t2;
 	struct test_ctx ctx;
-    int key_sizes[] = {16, 32}; // Different AES key Sizes (in Bytes)
+    //int key_sizes[] = {16, 32}; // Different AES key Sizes (in Bytes)
+    int key_sizes[] = {16}; // TODO: not supported 32 B Keys??
     double enc_times_ns[2 * NUM_TESTS]; // Array to store encryption times
     double dec_times_ns[2 * NUM_TESTS]; // Array to store decryption times
     double enc_times_s[2 * NUM_TESTS]; // Array to store encryption times
@@ -300,7 +298,6 @@ int main(void)
     // Start tests
     for (int i = 0; i < 2; i++) {
         printf("Starting Test Suite for Key Size of: %i\n", key_sizes[i]);
-        printf("Read clear text: \n%s\n", clear_text);
 
         // Estimate cipher text length
         size_t cph_len = clear_text_len + (key_sizes[i] * 8 - (clear_text_len %
@@ -315,7 +312,6 @@ int main(void)
 
             // Key and Initial Vector Random Generation
             unsigned char key[key_sizes[i]], iv[key_sizes[0]];
-            char key2[16];
             /*
              * TODO: generate randomness within TZ
             if (!RAND_bytes(key, sizeof(key)) || !RAND_bytes(iv, sizeof(iv))) {
@@ -324,8 +320,6 @@ int main(void)
             }
             */
             memset(key, 0xa5, sizeof(key));
-            //memset(key, 'a', sizeof(key));
-            printf("TEST: Can I read the key here? %s\n", key);
             memset(iv, 0xa1, sizeof(iv));
             
             // Non-Secure Encryption
@@ -348,9 +342,8 @@ int main(void)
             // Secure Encryption
             gettimeofday(&t1, NULL);
 	        prepare_aes(&ctx, ENCODE);
-	        // set_key(&ctx, key2, (size_t) (key_sizes[i] * 8));
-	        set_key(&ctx, key2, (size_t) key_sizes[i]);
-	        set_iv(&ctx, iv, key_sizes[0] * 8);
+	        set_key(&ctx, (char *) key, (size_t) key_sizes[i]);
+	        set_iv(&ctx, (char *) iv, (size_t) key_sizes[0]);
 	        cipher_buffer(&ctx, clear_text, cipher_text, cph_len);
             gettimeofday(&t2, NULL);
             enc_times_s[NUM_TESTS * i + j] = (t2.tv_sec - t1.tv_sec) * 1000.0;
@@ -359,8 +352,8 @@ int main(void)
             // Secure Decryption
             gettimeofday(&t1, NULL);
 	        prepare_aes(&ctx, DECODE);
-	        set_key(&ctx, key, key_sizes[i] * 8);
-	        set_iv(&ctx, iv, key_sizes[0] * 8);
+	        set_key(&ctx, (char *) key, (size_t) key_sizes[i]);
+	        set_iv(&ctx, (char *) iv, (size_t) key_sizes[0]);
 	        cipher_buffer(&ctx, cipher_text, decrypted_text, cph_len);
             gettimeofday(&t2, NULL);
             dec_times_s[NUM_TESTS * i + j] = (t2.tv_sec - t1.tv_sec) * 1000.0;
@@ -370,7 +363,7 @@ int main(void)
     }
 
     // Print times
-    printf("AES 128/256 CBC ENCRYPT/DECRYPT BENCHMARK: %i RUNS", NUM_TESTS);
+    printf("AES 128/256 CBC ENCRYPT/DECRYPT BENCHMARK: %i RUNS\n", NUM_TESTS);
     printf("Encrypt S: \t%f %f\t%f %f\n", avg(enc_times_s, NUM_TESTS),
             stdev(enc_times_s, NUM_TESTS), avg(&enc_times_s[100], NUM_TESTS),
             stdev(&enc_times_s[100], NUM_TESTS));
