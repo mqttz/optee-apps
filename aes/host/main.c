@@ -15,10 +15,6 @@
 /* To the the UUID (found the the TA's h-file(s)) */
 #include <aes_ta.h>
 
-#define AES_TEST_BUFFER_SIZE	4096
-#define AES_TEST_KEY_SIZE	16
-#define AES_BLOCK_SIZE		16
-
 #define DECODE			0
 #define ENCODE			1
 
@@ -189,7 +185,7 @@ void terminate_tee_session(struct test_ctx *ctx)
 	TEEC_FinalizeContext(&ctx->ctx);
 }
 
-void prepare_aes(struct test_ctx *ctx, int encode)
+void prepare_aes(struct test_ctx *ctx, int encode, int key_size)
 {
 	TEEC_Operation op;
 	uint32_t origin;
@@ -202,7 +198,8 @@ void prepare_aes(struct test_ctx *ctx, int encode)
 					 TEEC_NONE);
 
 	op.params[0].value.a = TA_AES_ALGO_CTR;
-	op.params[1].value.a = TA_AES_SIZE_128BIT;
+	//op.params[1].value.a = TA_AES_SIZE_128BIT;
+	op.params[1].value.a = key_size;
 	op.params[2].value.a = encode ? TA_AES_MODE_ENCODE :
 					TA_AES_MODE_DECODE;
 
@@ -279,8 +276,8 @@ int main(void)
     // Initialise variables
     struct timeval t1, t2;
 	struct test_ctx ctx;
-    //int key_sizes[] = {16, 32}; // Different AES key Sizes (in Bytes)
-    int key_sizes[] = {16}; // TODO: not supported 32 B Keys??
+    int key_sizes[] = {16, 32}; // Different AES key Sizes (in Bytes)
+    //int key_sizes[] = {16}; // Different AES key Sizes (in Bytes)
     double enc_times_ns[2 * NUM_TESTS]; // Array to store encryption times
     double dec_times_ns[2 * NUM_TESTS]; // Array to store decryption times
     double enc_times_s[2 * NUM_TESTS]; // Array to store encryption times
@@ -341,7 +338,7 @@ int main(void)
 
             // Secure Encryption
             gettimeofday(&t1, NULL);
-	        prepare_aes(&ctx, ENCODE);
+	        prepare_aes(&ctx, ENCODE, key_sizes[i]);
 	        set_key(&ctx, (char *) key, (size_t) key_sizes[i]);
 	        set_iv(&ctx, (char *) iv, (size_t) key_sizes[0]);
 	        cipher_buffer(&ctx, clear_text, cipher_text, cph_len);
@@ -351,7 +348,7 @@ int main(void)
 
             // Secure Decryption
             gettimeofday(&t1, NULL);
-	        prepare_aes(&ctx, DECODE);
+	        prepare_aes(&ctx, DECODE, key_sizes[i]);
 	        set_key(&ctx, (char *) key, (size_t) key_sizes[i]);
 	        set_iv(&ctx, (char *) iv, (size_t) key_sizes[0]);
 	        cipher_buffer(&ctx, cipher_text, decrypted_text, cph_len);
