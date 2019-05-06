@@ -185,8 +185,9 @@ void terminate_tee_session(struct test_ctx *ctx)
 	TEEC_FinalizeContext(&ctx->ctx);
 }
 
-void prepare_aes(struct test_ctx *ctx, int encode, int key_size)
+double prepare_aes(struct test_ctx *ctx, int encode, int key_size)
 {
+    struct timeval t1, t2;
 	TEEC_Operation op;
 	uint32_t origin;
 	TEEC_Result res;
@@ -203,15 +204,19 @@ void prepare_aes(struct test_ctx *ctx, int encode, int key_size)
 	op.params[2].value.a = encode ? TA_AES_MODE_ENCODE :
 					TA_AES_MODE_DECODE;
 
+    gettimeofday(&t1, NULL);
 	res = TEEC_InvokeCommand(&ctx->sess, TA_AES_CMD_PREPARE,
 				 &op, &origin);
+    gettimeofday(&t2, NULL);
 	if (res != TEEC_SUCCESS)
 		errx(1, "TEEC_InvokeCommand(PREPARE) failed 0x%x origin 0x%x",
 			res, origin);
+    return (t2.tv_sec - t1.tv_sec) * 1000.0 + (t2.tv_usec - t1.tv_usec)/1000.0;
 }
 
-void set_key(struct test_ctx *ctx, char *key, size_t key_sz)
+double set_key(struct test_ctx *ctx, char *key, size_t key_sz)
 {
+    struct timeval t1, t2;
 	TEEC_Operation op;
 	uint32_t origin;
 	TEEC_Result res;
@@ -223,15 +228,19 @@ void set_key(struct test_ctx *ctx, char *key, size_t key_sz)
 	op.params[0].tmpref.buffer = key;
 	op.params[0].tmpref.size = key_sz;
 
+    gettimeofday(&t1, NULL);
 	res = TEEC_InvokeCommand(&ctx->sess, TA_AES_CMD_SET_KEY,
 				 &op, &origin);
+    gettimeofday(&t2, NULL);
 	if (res != TEEC_SUCCESS)
 		errx(1, "TEEC_InvokeCommand(SET_KEY) failed 0x%x origin 0x%x",
 			res, origin);
+    return (t2.tv_sec - t1.tv_sec) * 1000.0 + (t2.tv_usec - t1.tv_usec)/1000.0;
 }
 
-void set_iv(struct test_ctx *ctx, char *iv, size_t iv_sz)
+double set_iv(struct test_ctx *ctx, char *iv, size_t iv_sz)
 {
+    struct timeval t1, t2;
 	TEEC_Operation op;
 	uint32_t origin;
 	TEEC_Result res;
@@ -242,15 +251,19 @@ void set_iv(struct test_ctx *ctx, char *iv, size_t iv_sz)
 	op.params[0].tmpref.buffer = iv;
 	op.params[0].tmpref.size = iv_sz;
 
+    gettimeofday(&t1, NULL);
 	res = TEEC_InvokeCommand(&ctx->sess, TA_AES_CMD_SET_IV,
 				 &op, &origin);
+    gettimeofday(&t2, NULL);
 	if (res != TEEC_SUCCESS)
 		errx(1, "TEEC_InvokeCommand(SET_IV) failed 0x%x origin 0x%x",
 			res, origin);
+    return (t2.tv_sec - t1.tv_sec) * 1000.0 + (t2.tv_usec - t1.tv_usec)/1000.0;
 }
 
-void cipher_buffer(struct test_ctx *ctx, char *in, char *out, size_t sz)
+double cipher_buffer(struct test_ctx *ctx, char *in, char *out, size_t sz)
 {
+    struct timeval t1, t2;
 	TEEC_Operation op;
 	uint32_t origin;
 	TEEC_Result res;
@@ -264,24 +277,31 @@ void cipher_buffer(struct test_ctx *ctx, char *in, char *out, size_t sz)
 	op.params[1].tmpref.buffer = out;
 	op.params[1].tmpref.size = sz;
 
+    gettimeofday(&t1, NULL);
 	res = TEEC_InvokeCommand(&ctx->sess, TA_AES_CMD_CIPHER,
 				 &op, &origin);
+    gettimeofday(&t2, NULL);
 	if (res != TEEC_SUCCESS)
 		errx(1, "TEEC_InvokeCommand(CIPHER) failed 0x%x origin 0x%x",
 			res, origin);
+    return (t2.tv_sec - t1.tv_sec) * 1000.0 + (t2.tv_usec - t1.tv_usec)/1000.0;
 }
 
 int main(void)
 {
     // Initialise variables
-    struct timeval t1, t2;
+    struct timeval t1, t2, t3, t4, t5;
 	struct test_ctx ctx;
     int key_sizes[] = {16, 32}; // Different AES key Sizes (in Bytes)
     //int key_sizes[] = {16}; // Different AES key Sizes (in Bytes)
     double enc_times_ns[2 * NUM_TESTS]; // Array to store encryption times
     double dec_times_ns[2 * NUM_TESTS]; // Array to store decryption times
-    double enc_times_s[2 * NUM_TESTS]; // Array to store encryption times
-    double dec_times_s[2 * NUM_TESTS]; // Array to store decryption times
+    double enc_times_s[2 * NUM_TESTS]; // Array to store sec encryption times
+    double dec_times_s[2 * NUM_TESTS]; // Array to store sec decryption times
+    double prepare_times[4][2 * NUM_TESTS]; // Prepare times (full and InvkCMD)
+    double set_iv_times[4][2 * NUM_TESTS]; // Set IV times (full and InvkCMD)
+    double set_key_times[4][2 * NUM_TESTS]; // Set key times (full and invk)
+    double cipher_times[4][2 * NUM_TESTS]; // Cipher buffer times (full n inv)
     size_t clear_text_len; // Clear text size, to estimate cipher text size
 
     // Load text in clear TODO: include files with build
@@ -338,21 +358,70 @@ int main(void)
 
             // Secure Encryption
             gettimeofday(&t1, NULL);
-	        prepare_aes(&ctx, ENCODE, key_sizes[i]);
-	        set_key(&ctx, (char *) key, (size_t) key_sizes[i]);
-	        set_iv(&ctx, (char *) iv, (size_t) key_sizes[0]);
-	        cipher_buffer(&ctx, clear_text, cipher_text, cph_len);
+	        prepare_times[1][NUM_TESTS * i + j] = prepare_aes(&ctx, ENCODE,
+                    key_sizes[i]);
+            gettimeofday(&t3, NULL);
+	        set_key_times[1][NUM_TESTS * i + j] = set_key(&ctx, (char *) key,
+                    (size_t) key_sizes[i]);
+            gettimeofday(&t4, NULL);
+	        set_iv_times[1][NUM_TESTS * i + j] = set_iv(&ctx, (char *) iv,
+                    (size_t) key_sizes[0]);
+            gettimeofday(&t5, NULL);
+	        cipher_times[1][NUM_TESTS * i + j] = cipher_buffer(&ctx,
+                    clear_text, cipher_text, cph_len);
             gettimeofday(&t2, NULL);
-            enc_times_s[NUM_TESTS * i + j] = (t2.tv_sec - t1.tv_sec) * 1000.0;
-            enc_times_s[NUM_TESTS * i + j] += (t2.tv_usec - t1.tv_usec)/1000.0;
+            // Update Times
+            prepare_times[0][NUM_TESTS * i + j] = (t3.tv_sec - t1.tv_sec) 
+                * 1000.0;
+            prepare_times[0][NUM_TESTS * i + j] += (t3.tv_usec - t1.tv_usec)
+                / 1000.0;
+            set_key_times[0][NUM_TESTS * i + j] = (t4.tv_sec - t3.tv_sec) 
+                * 1000.0;
+            set_key_times[0][NUM_TESTS * i + j] += (t4.tv_usec - t3.tv_usec)
+                / 1000.0;
+            set_iv_times[0][NUM_TESTS * i + j] = (t5.tv_sec - t4.tv_sec) 
+                * 1000.0;
+            set_iv_times[0][NUM_TESTS * i + j] += (t5.tv_usec - t4.tv_usec)
+                / 1000.0;
+            cipher_times[0][NUM_TESTS * i + j] = (t2.tv_sec - t5.tv_sec) 
+                * 1000.0;
+            cipher_times[0][NUM_TESTS * i + j] += (t2.tv_usec - t5.tv_usec)
+                / 1000.0;
+            enc_times_s[NUM_TESTS * i + j] = (t2.tv_sec - t1.tv_sec) 
+                * 1000.0;
+            enc_times_s[NUM_TESTS * i + j] += (t2.tv_usec - t1.tv_usec)
+                / 1000.0;
 
             // Secure Decryption
             gettimeofday(&t1, NULL);
-	        prepare_aes(&ctx, DECODE, key_sizes[i]);
-	        set_key(&ctx, (char *) key, (size_t) key_sizes[i]);
-	        set_iv(&ctx, (char *) iv, (size_t) key_sizes[0]);
-	        cipher_buffer(&ctx, cipher_text, decrypted_text, cph_len);
+	        prepare_times[4][NUM_TESTS * i + j] = prepare_aes(&ctx, DECODE,
+                    key_sizes[i]);
+            gettimeofday(&t3, NULL);
+	        set_key_times[4][NUM_TESTS * i + j] = set_key(&ctx, (char *) key,
+                    (size_t) key_sizes[i]);
+            gettimeofday(&t4, NULL);
+	        set_iv_times[4][NUM_TESTS * i + j] = set_iv(&ctx, (char *) iv,
+                    (size_t) key_sizes[0]);
+            gettimeofday(&t5, NULL);
+	        cipher_times[4][NUM_TESTS * i + j] = cipher_buffer(&ctx,
+                    cipher_text, decrypted_text, cph_len);
             gettimeofday(&t2, NULL);
+            prepare_times[3][NUM_TESTS * i + j] = (t3.tv_sec - t1.tv_sec) 
+                * 1000.0;
+            prepare_times[3][NUM_TESTS * i + j] += (t3.tv_usec - t1.tv_usec)
+                / 1000.0;
+            set_key_times[3][NUM_TESTS * i + j] = (t4.tv_sec - t3.tv_sec) 
+                * 1000.0;
+            set_key_times[3][NUM_TESTS * i + j] += (t4.tv_usec - t3.tv_usec)
+                / 1000.0;
+            set_iv_times[3][NUM_TESTS * i + j] = (t5.tv_sec - t4.tv_sec) 
+                * 1000.0;
+            set_iv_times[3][NUM_TESTS * i + j] += (t5.tv_usec - t4.tv_usec)
+                / 1000.0;
+            cipher_times[3][NUM_TESTS * i + j] = (t2.tv_sec - t5.tv_sec) 
+                * 1000.0;
+            cipher_times[3][NUM_TESTS * i + j] += (t2.tv_usec - t5.tv_usec)
+                / 1000.0;
             dec_times_s[NUM_TESTS * i + j] = (t2.tv_sec - t1.tv_sec) * 1000.0;
             dec_times_s[NUM_TESTS * i + j] += (t2.tv_usec - t1.tv_usec)/1000.0;
 
@@ -360,7 +429,9 @@ int main(void)
     }
 
     // Print times
-    printf("AES 128/256 CBC ENCRYPT/DECRYPT BENCHMARK: %i RUNS\n", NUM_TESTS);
+    printf("--------------------------------------------------------------\n");
+    printf("AES 128/256 CBC ENCRYPT/DECRYPT BENCHMARK (16B vs 32B Key): %i RUNS\n"
+            , NUM_TESTS);
     printf("Encrypt S: \t%f %f\t%f %f\n", avg(enc_times_s, NUM_TESTS),
             stdev(enc_times_s, NUM_TESTS), avg(&enc_times_s[100], NUM_TESTS),
             stdev(&enc_times_s[100], NUM_TESTS));
@@ -373,6 +444,66 @@ int main(void)
     printf("Decrypt NS: \t%f %f\t%f %f\n", avg(dec_times_ns, NUM_TESTS),
             stdev(dec_times_ns, NUM_TESTS), avg(&dec_times_ns[100], NUM_TESTS),
             stdev(&dec_times_ns[100], NUM_TESTS));
+    printf("--------------------------------------------------------------\n");
+    printf("\t\tSECURE ENCRYPT/DECRYPT TIME BREAKDOWN\n");
+    printf("\t\t\tENCRYPT (16B / 32B)\n");
+    printf("prepare_aes (All) \t%f %f\t%f %f\n", avg(prepare_times, NUM_TESTS),
+            stdev(prepare_times, NUM_TESTS), avg(&prepare_times[0][100],
+            NUM_TESTS), stdev(&prepare_times[0][100], NUM_TESTS));
+    printf("prepare_aes (Inv) \t%f %f\t%f %f\n", avg(&prepare_times[1],
+            NUM_TESTS), stdev(&prepare_times[1], NUM_TESTS), 
+            avg(&prepare_times[1][100], NUM_TESTS), 
+            stdev(&prepare_times[1][100], NUM_TESTS));
+    printf("set_iv (All) \t\t%f %f\t%f %f\n", avg(set_iv_times, NUM_TESTS),
+            stdev(set_iv_times, NUM_TESTS), avg(&set_iv_times[0][100],
+            NUM_TESTS), stdev(&set_iv_times[0][100], NUM_TESTS));
+    printf("set_iv (Inv) \t\t%f %f\t%f %f\n", avg(&set_iv_times[1],
+            NUM_TESTS), stdev(&set_iv_times[1], NUM_TESTS), 
+            avg(&set_iv_times[1][100], NUM_TESTS), 
+            stdev(&set_iv_times[1][100], NUM_TESTS));
+    printf("set_key (All) \t\t%f %f\t%f %f\n", avg(set_key_times, NUM_TESTS),
+            stdev(set_key_times, NUM_TESTS), avg(&set_key_times[0][100],
+            NUM_TESTS), stdev(&set_key_times[0][100], NUM_TESTS));
+    printf("set_key (Inv) \t\t%f %f\t%f %f\n", avg(&set_key_times[1],
+            NUM_TESTS), stdev(&set_key_times[1], NUM_TESTS), 
+            avg(&set_key_times[1][100], NUM_TESTS), 
+            stdev(&set_key_times[1][100], NUM_TESTS));
+    printf("cipher_buffer (All) \t%f %f\t%f %f\n", avg(cipher_times, NUM_TESTS),
+            stdev(cipher_times, NUM_TESTS), avg(&cipher_times[0][100],
+            NUM_TESTS), stdev(&cipher_times[0][100], NUM_TESTS));
+    printf("cipher_buffer (Inv) \t%f %f\t%f %f\n", avg(&cipher_times[1],
+            NUM_TESTS), stdev(&cipher_times[1], NUM_TESTS), 
+            avg(&cipher_times[1][100], NUM_TESTS), 
+            stdev(&cipher_times[1][100], NUM_TESTS));
+    printf("\t\t\tDECRYPT (16B / 32B)\n");
+    printf("prepare_aes (All) \t%f %f\t%f %f\n", avg(&prepare_times[3], NUM_TESTS),
+            stdev(&prepare_times[3], NUM_TESTS), avg(&prepare_times[3][100],
+            NUM_TESTS), stdev(&prepare_times[3][100], NUM_TESTS));
+    printf("prepare_aes (Inv) \t%f %f\t%f %f\n", avg(&prepare_times[4],
+            NUM_TESTS), stdev(&prepare_times[4], NUM_TESTS), 
+            avg(&prepare_times[4][100], NUM_TESTS), 
+            stdev(&prepare_times[4][100], NUM_TESTS));
+    printf("set_iv (All) \t\t%f %f\t%f %f\n", avg(&set_iv_times[3], NUM_TESTS),
+            stdev(&set_iv_times[3], NUM_TESTS), avg(&set_iv_times[3][100],
+            NUM_TESTS), stdev(&set_iv_times[3][100], NUM_TESTS));
+    printf("set_iv (Inv) \t\t%f %f\t%f %f\n", avg(&set_iv_times[4],
+            NUM_TESTS), stdev(&set_iv_times[4], NUM_TESTS), 
+            avg(&set_iv_times[4][100], NUM_TESTS), 
+            stdev(&set_iv_times[4][100], NUM_TESTS));
+    printf("set_key (All) \t\t%f %f\t%f %f\n", avg(&set_key_times[3], NUM_TESTS),
+            stdev(&set_key_times[3], NUM_TESTS), avg(&set_key_times[3][100],
+            NUM_TESTS), stdev(&set_key_times[3][100], NUM_TESTS));
+    printf("set_key (Inv) \t\t%f %f\t%f %f\n", avg(&set_key_times[4],
+            NUM_TESTS), stdev(&set_key_times[4], NUM_TESTS), 
+            avg(&set_key_times[4][100], NUM_TESTS), 
+            stdev(&set_key_times[4][100], NUM_TESTS));
+    printf("cipher_buffer (All) \t%f %f\t%f %f\n", avg(&cipher_times[3], NUM_TESTS),
+            stdev(&cipher_times[3], NUM_TESTS), avg(&cipher_times[3][100],
+            NUM_TESTS), stdev(&cipher_times[3][100], NUM_TESTS));
+    printf("cipher_buffer (Inv) \t%f %f\t%f %f\n", avg(&cipher_times[4],
+            NUM_TESTS), stdev(&cipher_times[4], NUM_TESTS), 
+            avg(&cipher_times[4][100], NUM_TESTS), 
+            stdev(&cipher_times[4][100], NUM_TESTS));
     printf("--------------------------------------------------------------\n");
 
 	terminate_tee_session(&ctx);
