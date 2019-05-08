@@ -52,4 +52,4 @@ make -j `nproc`
 make run
 ```
 
-Ideally, two terminal windows should pop up, from the *Normal* one, type in `test` as login and then `cd /usr/bin`. There you will find all the example applications to be run.
+Ideally, two terminal windows should pop up, first go to the build repo and pres `c`, then from the *Normal* terminal window, type in `test` as login and then `cd /usr/bin`. There you will find all the example applications to be run.
