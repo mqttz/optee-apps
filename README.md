@@ -41,4 +41,15 @@ OP-TEE secure storage using the GPD TEE Internal Core API.
 **`create`** | 70.502480 | 5.221423 | 0.004120 | 0.012384
 **`read`** | 34.511310 | 3.197807 | 0.094970 | 0.043544
 **`delete`** | 49.678530 | 4.697380 | 0.007390 | 0.008262
+---
+## 3. Run the example applications
+The current applciations and results are executed using QEMUv8. For instructions on how to build the distribution go [here](https://optee.readthedocs.io/building/devices/qemu.html#qemu-v8).
 
+Once you have the distribution installed and compiled, go to you project source (`optee-qemuv8` most likely) and replace the existing `optee_examples` with this repository. Then, assuming you are in the project source directory,
+```
+cd build
+make -j `nproc`
+make run
+```
+
+Ideally, two terminal windows should pop up, from the *Normal* one, type in `test` as login and then `cd /usr/bin`. There you will find all the example applications to be run.
