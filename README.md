@@ -29,6 +29,28 @@ ciphered data.
 **`decrypt_secure`** | 9.975890 | 1.361816 | 9.838330 | 0.726974
 **`decrypt_non_secure`** | 0.029540 | 0.066368 | 0.024580 | 0.011792
 
+* Given the big difference in times, we do a detailed breakdown, call by call.
+
+**Operation (100 Runs)** | `aes128 avg(ms)` | `aes128 stdev(ms^2)` | `aes256 avg(ms)` | `aes256 stdev(ms^2)`
+----- | :-----: | :-----: | :-----: | :-----:
+**ENCRYPT** | | | |
+**`prepare_aes (All)`** | 1.835580 | 0.617803 | 1.735570 | 0.249139
+**`prepare_aes (Inv)`** | 1.828620 | 0.602770 | 1.727980 | 0.247723
+**`set_iv (All)`** | 1.771470 | 0.381386 | 1.745310 | 0.298647
+**`set_key (All)`** | 2.013820 | 0.261122 | 1.993960 | 0.238595
+**`set_key (Inv)`** | 2.497050 | 0.313976 | 2.493960 | 0.257539
+**`cipher_buffer (All)`** | 2.489840 | 0.376701 | 2.489350 | 0.250265
+**`cipher_buffer (Inv)`** | 3.186370 | 0.416062 | 3.146790 | 0.223447
+**DECRYPT** | | | |
+**`prepare_aes (All)`** | 1.776720 | 0.382576 | 1.750260 | 0.299260
+**`prepare_aes (Inv)`** | 1.771470 | 0.381386 | 1.745310 | 0.298647
+**`set_iv (All)`**  | 2.021380 |0.260658 | 1.998940 | 0.238969
+**`set_iv (Inv)`** | 2.013820 | 0.261122 | 1.993960 | 0.238595
+**`set_key (All)`** | 2.495490 | 0.377351 | 2.494840 | 0.250680
+**`set_key (Inv)`**  | 2.489840 | 0.376701 | 2.489350 | 0.250265
+**`cipher_buffer (All)`** | 3.143650 | 0.368956 | 3.125450 | 0.173279
+**`cipher_buffer (Inv)`** | 3.137560 | 0.368027  | 3.119400 | 0.173166
+
 
 Directory **secure_storage/**:
 * A Trusted Application to read/write raw data into the
