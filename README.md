@@ -84,6 +84,7 @@ qemu-system-aarch64 \
 * Note the host forwarding. This way the client can run in `localhost` and the server in the Rich OS in `QEMU`.
 * The client must then listen to `127.0.0.1:5555`.
 * The server must bind to `10.0.2.2:5555`, this is due to the fact that we make use of the default `QEMU` [SLIRP netowrk](https://wiki.qemu.org/Documentation/Networking).
+* To **run the program** execute the `optee_tcp_server` binary as indicated below, and the client one (`tcp_server/client`) in another terminal in localhost.
 * If what is desired is to connect via SSH, two further things need to be done. Firstly, the OPENSSH package must be included. Generally, to include packages that are already preloaded with `buildrrot` one must only do the following:
 ```bash
 echo '@echo "BR2_PACKAGE_OPENSSH=y" >> ../out-br/extra.conf' >> ${OPTEE_SRC}/build
