@@ -42,6 +42,36 @@ OP-TEE secure storage using the GPD TEE Internal Core API.
 **`read`** | 34.511310 | 3.197807 | 0.094970 | 0.043544
 **`delete`** | 49.678530 | 4.697380 | 0.007390 | 0.008262
 ---
+
+Directory **tcp_server/**:
+* Application that places a TCP server in the Rich OS. Some things to be considered to get the networking to work with `QEMU`. Right now I am starting the VM with the following configuration parameters:
+```bash
+qemu-system-aarch64 \
+        -nographic \
+        -serial tcp:localhost:54320 -serial tcp:localhost:54321 \
+        -smp 2 \
+        -s -S -machine virt,secure=on -cpu cortex-a57 \
+        -d unimp -semihosting-config enable,target=native \
+        -m 1057 \
+        -bios bl1.bin \
+        -initrd rootfs.cpio.gz \
+        -kernel Image -no-acpi \
+        -append 'console=ttyAMA0,38400 keep_bootcon root=/dev/vda2' \
+        -netdev user,id=vmnic,hostfwd=tcp::9999-:9999 -device virtio-net-device,netdev=vmnic
+```
+* Note the host forwarding. This way the client can run in `localhost` and the server in the Rich OS in `QEMU`.
+* The client must then listen to `127.0.0.1:5555`.
+* The server must bind to `10.0.2.2:5555`, this is due to the fact that we make use of the default `QEMU` [SLIRP netowrk](https://wiki.qemu.org/Documentation/Networking).
+* If what is desired is to connect via SSH, two further things need to be done. Firstly, the OPENSSH package must be included. Generally, to include packages that are already preloaded with `buildrrot` one must only do the following:
+```bash
+echo '@echo "BR2_PACKAGE_OPENSSH=y" >> ../out-br/extra.conf' >> ${OPTEE_SRC}/build
+cd ${OPTEE_SRC}/build
+make clean
+make -j $(nproc)
+make run
+```
+* Lastly, given that the default non-privileged user is `test` and has no password, the `/etc/ssh/sshd_config` file must be edited to allow empty passwords.
+
 ## 3. Run the example applications
 The current applciations and results are executed using QEMUv8. For instructions on how to build the distribution go [here](https://optee.readthedocs.io/building/devices/qemu.html#qemu-v8).
 
