@@ -51,7 +51,7 @@ void terminate_tee_session(struct test_ctx *ctx)
 	TEEC_FinalizeContext(&ctx->ctx);
 }
 
-/*
+
 TEEC_Result read_secure_object(struct test_ctx *ctx, char *id,
 			char *data, size_t data_len)
 {
@@ -85,15 +85,52 @@ TEEC_Result read_secure_object(struct test_ctx *ctx, char *id,
 
 	return res;
 }
-*/
 
-void func(int sockfd)
+
+TEEC_Result write_secure_object(struct test_ctx *ctx, char *id,
+			char *data, size_t data_len)
+{
+	TEEC_Operation op;
+	uint32_t origin;
+	TEEC_Result res;
+	size_t id_len = strlen(id);
+
+	memset(&op, 0, sizeof(op));
+	op.paramTypes = TEEC_PARAM_TYPES(TEEC_MEMREF_TEMP_INPUT,
+					 TEEC_MEMREF_TEMP_INPUT,
+					 TEEC_NONE, TEEC_NONE);
+
+	op.params[0].tmpref.buffer = id;
+	op.params[0].tmpref.size = id_len;
+
+	op.params[1].tmpref.buffer = data;
+	op.params[1].tmpref.size = data_len;
+
+	res = TEEC_InvokeCommand(&ctx->sess,
+				 TA_SECURE_STORAGE_CMD_WRITE_RAW,
+				 &op, &origin);
+	if (res != TEEC_SUCCESS)
+		printf("Command WRITE_RAW failed: 0x%x / %u\n", res, origin);
+
+	switch (res) {
+	case TEEC_SUCCESS:
+		break;
+	default:
+		printf("Command WRITE_RAW failed: 0x%x / %u\n", res, origin);
+	}
+
+	return res;
+}
+
+
+void func(int sockfd, struct test_ctx &ctx)
 {
     char buff[MAX];
 	char out_buff[MAX];
 	char cli_id[10]; // TODO: define ID format?
 	char cmd[4]; 
     int n;
+	TEEC_Result res;
 	regex_t regex;
 	regmatch_t rm[3];
 	int reti;
@@ -123,12 +160,16 @@ void func(int sockfd)
 			if (strcmp(cmd, "get") == 0) {
 				strcpy(out_buff, "Get command parsed!\n");
                 // Check if id format is sane
+                // Check if cli_id is in Rich OS map
+                read_secure_object(&ctx, cli_id, out_buff, sizeof(out_buff));
 			} else if (strcmp(cmd, "set") == 0) {
 				strcpy(out_buff, "Set command parsed!\n");
                 char *found = strchr(cli_id, ',');
                 if (found) {
                     char *cl_id = strtok(cli_id, ",");
                     char *cl_key = strtok(NULL, ",");
+                    // Check if cli_id in Rich OS map
+                    write_secure_object(&ctx, cli_id, cl_key, sizeof(cl_key));
                 } else {
                     printf("Have not provided enough arguments for set!\n");
                 }
@@ -148,7 +189,6 @@ int main(int argc, char *argv[])
 {
 	struct test_ctx ctx;
     struct timeval t1, t2;
-	TEEC_Result res;
 
     // Dummy TEE Context to check if all files are OK
 	prepare_tee_session(&ctx);
@@ -192,7 +232,7 @@ int main(int argc, char *argv[])
     }
     
     // Chatting between server and client
-    func(new_socket);
+    func(new_socket, &ctx);
 
     // Close the socket when finished
     close(server_fd);
