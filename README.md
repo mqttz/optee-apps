@@ -10,10 +10,16 @@ This document describes the different benchmarking applciations developed with t
 ---
 ## 2. List of Implemented Applications
 
+**Hello World**
+
 Directory **hello_world/**:
 * A very simple Trusted Application to answer a hello command and incrementing
 an integer value.
 * Test application: `optee_example_hello_world`
+
+---
+
+**Symmetric Encryption: AES**
 
 Directory **aes/**:
 * Runs an AES encryption and decryption from a TA using the GPD TEE Internal
@@ -51,6 +57,9 @@ ciphered data.
 **`cipher_buffer (All)`** | 3.143650 | 0.368956 | 3.125450 | 0.173279
 **`cipher_buffer (Inv)`** | 3.137560 | 0.368027  | 3.119400 | 0.173166
 
+---
+
+**Secure Storage**
 
 Directory **secure_storage/**:
 * A Trusted Application to read/write raw data into the
@@ -63,7 +72,10 @@ OP-TEE secure storage using the GPD TEE Internal Core API.
 **`create`** | 70.502480 | 5.221423 | 0.004120 | 0.012384
 **`read`** | 34.511310 | 3.197807 | 0.094970 | 0.043544
 **`delete`** | 49.678530 | 4.697380 | 0.007390 | 0.008262
+
 ---
+
+**TCP Server**
 
 Directory **tcp_server/**:
 * Application that places a TCP server in the Rich OS. Some things to be considered to get the networking to work with `QEMU`. Right now I am starting the VM with the following configuration parameters:
@@ -94,6 +106,26 @@ make -j $(nproc)
 make run
 ```
 * Lastly, given that the default non-privileged user is `test` and has no password, the `/etc/ssh/sshd_config` file must be edited to allow empty passwords.
+
+---
+
+**Secure Cache Implementation**
+
+Directory `hot_cache`
++ The aim of this application is to implement a _secure_ hot cache.
++ Ideally it is a TCP server running in the Rich OS that receives queries to either set, or get a key basing on a client id.
++ Keys will be stored in secure storage. We will study the two different types of [secure storage](https://optee.readthedocs.io/architecture/secure_storage.html) availables in `Op-Tee`.
+
+Roadmap:
+0. [ ] Draw illustrative graphic
+1. [X] TCP Server Implementation
+2. [X] Command parser
+3. [ ] Investigate the two different types of secure storage
+4. [ ] Mock call to both secure storages
+5. [ ] Shadowed KV Store at the Rich OS
+6. [ ] Design secure counter part
+7. [ ] Dumb cache logic
+8. [ ] Smart cache logic (Rich OS)
 
 ## 3. Run the example applications
 The current applciations and results are executed using QEMUv8. For instructions on how to build the distribution go [here](https://optee.readthedocs.io/building/devices/qemu.html#qemu-v8).
