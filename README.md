@@ -115,6 +115,11 @@ Directory `hot_cache`
 + The aim of this application is to implement a _secure_ hot cache.
 + Ideally it is a TCP server running in the Rich OS that receives queries to either set, or get a key basing on a client id.
 + Keys will be stored in secure storage. We will study the two different types of [secure storage](https://optee.readthedocs.io/architecture/secure_storage.html) availables in `Op-Tee`.
++ The current API is the following:
+```c
+set_key(client_id,key)
+get_key(client_id)
+```
 
 Roadmap:
 0. [ ] Draw illustrative graphic

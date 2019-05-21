@@ -97,7 +97,7 @@ void func(int sockfd)
 	regex_t regex;
 	regmatch_t rm[3];
 	int reti;
-	reti = regcomp(&regex, "^(get|set)_key\\(([0-9]+)\\)", REG_EXTENDED);
+	reti = regcomp(&regex, "^(get|set)_key\\((.*?)\\)", REG_EXTENDED);
 	if (reti) {
 		printf("Could not compile regex!\n");
 		exit(1);
@@ -122,8 +122,16 @@ void func(int sockfd)
 			strncpy(cli_id, &buff[rm[2].rm_so], (int) rm[2].rm_eo - rm[2].rm_so);
 			if (strcmp(cmd, "get") == 0) {
 				strcpy(out_buff, "Get command parsed!\n");
+                // Check if id format is sane
 			} else if (strcmp(cmd, "set") == 0) {
 				strcpy(out_buff, "Set command parsed!\n");
+                char *found = strchr(cli_id, ',');
+                if (found) {
+                    char *cl_id = strtok(cli_id, ",");
+                    char *cl_key = strtok(NULL, ",");
+                } else {
+                    printf("Have not provided enough arguments for set!\n");
+                }
 			} else {
 				strcpy(out_buff, "Wrong command introduced!\n");
 			}
