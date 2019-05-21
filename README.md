@@ -122,6 +122,7 @@ get_key(client_id)
 ```
 
 Roadmap:
+
 0. [ ] Draw illustrative graphic
 1. [X] TCP Server Implementation
 2. [X] Command parser
