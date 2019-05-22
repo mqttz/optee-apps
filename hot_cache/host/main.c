@@ -123,7 +123,7 @@ TEEC_Result write_secure_object(struct test_ctx *ctx, char *id,
 }
 
 
-void func(int sockfd, struct test_ctx &ctx)
+void func(int sockfd, struct test_ctx* ctx)
 {
     char buff[MAX];
 	char out_buff[MAX];
@@ -161,7 +161,7 @@ void func(int sockfd, struct test_ctx &ctx)
 				strcpy(out_buff, "Get command parsed!\n");
                 // Check if id format is sane
                 // Check if cli_id is in Rich OS map
-                read_secure_object(&ctx, cli_id, out_buff, sizeof(out_buff));
+                read_secure_object(ctx, cli_id, out_buff, sizeof(out_buff));
 			} else if (strcmp(cmd, "set") == 0) {
 				strcpy(out_buff, "Set command parsed!\n");
                 char *found = strchr(cli_id, ',');
@@ -169,7 +169,7 @@ void func(int sockfd, struct test_ctx &ctx)
                     char *cl_id = strtok(cli_id, ",");
                     char *cl_key = strtok(NULL, ",");
                     // Check if cli_id in Rich OS map
-                    write_secure_object(&ctx, cli_id, cl_key, sizeof(cl_key));
+                    write_secure_object(ctx, cli_id, cl_key, sizeof(cl_key));
                 } else {
                     printf("Have not provided enough arguments for set!\n");
                 }
