@@ -78,7 +78,7 @@ OP-TEE secure storage using the GPD TEE Internal Core API.
 **TCP Server**
 
 Directory **tcp_server/**:
-* Application that places a TCP server in the Rich OS. Some things to be considered to get the networking to work with `QEMU`. Right now I am starting the VM with the following configuration parameters:
+* Application that places a TCP server in the Rich OS. Some things to be considered to get the networking to work with `QEMU`. Right now I am starting the VM with the following configuration parameters (to be configured in `build/common.mk`):
 ```bash
 qemu-system-aarch64 \
         -nographic \
