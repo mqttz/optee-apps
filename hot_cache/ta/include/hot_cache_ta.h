@@ -31,6 +31,19 @@
 #define TA_HOT_CACHE_UUID \
 		{ 0xab3e985c, 0xc096, 0x4d22, \
 			{ 0xb4, 0x60, 0x5d, 0x9c, 0x17, 0xd7, 0x07, 0x13 } }
+
+// AES Related Constants
+#define TA_AES_ALGO_ECB			0
+#define TA_AES_ALGO_CBC			1
+#define TA_AES_ALGO_CTR			2
+#define TA_AES_IV_SIZE          16 
+#define TA_AES_KEY_SIZE         32
+#define TA_AES_MODE_ENCODE		1
+#define TA_AES_MODE_DECODE		0
+
+// MQTTZ Related Constants
+#define TA_MQTTZ_CLI_ID_SZ      12
+
 /*
  * TA_SECURE_STORAGE_CMD_READ_RAW - Create and fill a secure storage file
  * param[0] (memref) ID used the identify the persistent object
@@ -57,5 +70,51 @@
  * param[3] unused
  */
 #define TA_SECURE_STORAGE_CMD_DELETE		2
+
+/*
+ * TA_REENCRYPT - Reencrypt the message payload.
+ * param[0] (memref) ID used the identify the persistent object
+ * param[1] unused
+ * param[2] unused
+ * param[3] unused
+ */
+#define TA_REENCRYPT                        3
+
+/*
+ * TA_AES_CMD_PREPARE - Allocate resources for the AES ciphering
+ * param[0] (value) a: TA_AES_ALGO_xxx, b: unused
+ * param[1] (value) a: key size in bytes, b: unused
+ * param[2] (value) a: TA_AES_MODE_ENCODE/_DECODE, b: unused
+ * param[3] unused
+ */
+#define TA_AES_CMD_PREPARE		            4
+
+/*
+ * TA_AES_CMD_SET_KEY - Allocate resources for the AES ciphering
+ * param[0] (memref) key data, size shall equal key length
+ * param[1] unused
+ * param[2] unused
+ * param[3] unused
+ */
+#define TA_AES_CMD_SET_KEY		            5
+
+/*
+ * TA_AES_CMD_SET_IV - reset IV
+ * param[0] (memref) initial vector, size shall equal block length
+ * param[1] unused
+ * param[2] unused
+ * param[3] unused
+ */
+#define TA_AES_CMD_SET_IV                   6
+
+/*
+ * TA_AES_CMD_CIPHER - Cipher input buffer into output buffer
+ * param[0] (memref) input buffer
+ * param[1] (memref) output buffer (shall be bigger than input buffer)
+ * param[2] unused
+ * param[3] unused
+ */
+#define TA_AES_CMD_CIPHER		            7
+
 
 #endif /* __SECURE_STORAGE_H__ */

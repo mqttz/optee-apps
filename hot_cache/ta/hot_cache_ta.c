@@ -25,117 +25,95 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <hot_cache_ta.h>
+#include <inttypes.h>
+
 #include <tee_internal_api.h>
 #include <tee_internal_api_extensions.h>
 
-static TEE_Result delete_object(uint32_t param_types, TEE_Param params[4])
+#include <hot_cache_ta.h>
+
+#define AES128_KEY_BIT_SIZE		128
+#define AES128_KEY_BYTE_SIZE		(AES128_KEY_BIT_SIZE / 8)
+#define AES256_KEY_BIT_SIZE		256
+#define AES256_KEY_BYTE_SIZE		(AES256_KEY_BIT_SIZE / 8)
+
+typedef struct aes_cipher {
+    uint32_t algo;
+    uint32_t mode;
+    uint32_t key_size;
+    TEE_OperationHandle op_handle;
+    TEE_ObjectHandle key_handle;
+} aes_cipher;
+
+static TEE_Result alloc_resources(void *sess, uint32_t mode, char *key,
+        char *iv)
 {
-	const uint32_t exp_param_types =
-		TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
-				TEE_PARAM_TYPE_NONE,
-				TEE_PARAM_TYPE_NONE,
-				TEE_PARAM_TYPE_NONE);
-	TEE_ObjectHandle object;
-	TEE_Result res;
-	char *obj_id;
-	size_t obj_id_sz;
-
-	/*
-	 * Safely get the invocation parameters
-	 */
-	if (param_types != exp_param_types)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	obj_id_sz = params[0].memref.size;
-	obj_id = TEE_Malloc(obj_id_sz, 0);
-	if (!obj_id)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	TEE_MemMove(obj_id, params[0].memref.buffer, obj_id_sz);
-
-	/*
-	 * Check object exists and delete it
-	 */
-	res = TEE_OpenPersistentObject(TEE_STORAGE_PRIVATE,
-					obj_id, obj_id_sz,
-					TEE_DATA_FLAG_ACCESS_READ |
-					TEE_DATA_FLAG_ACCESS_WRITE_META, /* we must be allowed to delete it */
-					&object);
-	if (res != TEE_SUCCESS) {
-		EMSG("Failed to open persistent object, res=0x%08x", res);
-		TEE_Free(obj_id);
-		return res;
-	}
-
-	TEE_CloseAndDeletePersistentObject1(object);
-	TEE_Free(obj_id);
-
-	return res; }
-
-static TEE_Result create_raw_object(uint32_t param_types, TEE_Param params[4])
-{
-	const uint32_t exp_param_types =
-		TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
-				TEE_PARAM_TYPE_MEMREF_INPUT,
-				TEE_PARAM_TYPE_NONE,
-				TEE_PARAM_TYPE_NONE);
-	TEE_ObjectHandle object;
-	TEE_Result res;
-	char *obj_id;
-	size_t obj_id_sz;
-	char *data;
-	size_t data_sz;
-	uint32_t obj_data_flag;
-
-	/*
-	 * Safely get the invocation parameters
-	 */
-	if (param_types != exp_param_types)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	obj_id_sz = params[0].memref.size;
-	obj_id = TEE_Malloc(obj_id_sz, 0);
-	if (!obj_id)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	TEE_MemMove(obj_id, params[0].memref.buffer, obj_id_sz);
-
-	data = (char *)params[1].memref.buffer;
-	data_sz = params[1].memref.size;
-
-	/*
-	 * Create object in secure storage and fill with data
-	 */
-	obj_data_flag = TEE_DATA_FLAG_ACCESS_READ |		/* we can later read the oject */
-			TEE_DATA_FLAG_ACCESS_WRITE |		/* we can later write into the object */
-			TEE_DATA_FLAG_ACCESS_WRITE_META |	/* we can later destroy or rename the object */
-			TEE_DATA_FLAG_OVERWRITE;		/* destroy existing object of same ID */
-
-	res = TEE_CreatePersistentObject(TEE_STORAGE_PRIVATE,
-					obj_id, obj_id_sz,
-					obj_data_flag,
-					TEE_HANDLE_NULL,
-					NULL, 0,		/* we may not fill it right now */
-					&object);
-	if (res != TEE_SUCCESS) {
-		EMSG("TEE_CreatePersistentObject failed 0x%08x", res);
-		TEE_Free(obj_id);
-		return res;
-	}
-
-	res = TEE_WriteObjectData(object, data, data_sz);
-	if (res != TEE_SUCCESS) {
-		EMSG("TEE_WriteObjectData failed 0x%08x", res);
-		TEE_CloseAndDeletePersistentObject1(object);
-	} else {
-		TEE_CloseObject(object);
-	}
-	TEE_Free(obj_id);
-	return res;
+    aes_cipher *session;
+    TEE_Attribute attr;
+    TEE_Result res;
+    session = (aes_cipher *)sess;
+    session->algo = TEE_ALG_AES_CBC_NOPAD;
+    session->key_size = TA_AES_KEY_SIZE;
+    switch (mode) {
+        case TA_AES_MODE_ENCODE:
+            session->mode = TEE_MODE_ENCRYPT;
+            break;
+        case TA_AES_MODE_DECODE:
+            session->mode = TEE_MODE_DECRYPT;
+            break;
+        default:
+            return TEE_ERROR_BAD_PARAMETERS;
+    }
+    // Free previous operation handle
+    if (session->op_handle != TEE_HANDLE_NULL)
+        TEE_FreeOperation(session->op_handle);
+    // Allocate operation
+    res = TEE_AllocateOperation(&session->op_handle, session->algo,
+            session->mode, session->key_size * 8);
+    if (res != TEE_SUCCESS)
+    {
+        session->op_handle = TEE_HANDLE_NULL;
+        goto err;
+    }
+    // Free Previous Key Handle
+    if (session->key_handle != TEE_HANDLE_NULL)
+        TEE_FreeTransientObject(session->key_handle);
+    res = TEE_AllocateTransientObject(TEE_TYPE_AES, session->key * 8,
+            &session->key_handle);
+    if (res != TEE_SUCCESS)
+    {
+        session->key_handle = TEE_HANDLE_NULL;
+        goto err;
+    }
+    // Load Key 
+    TEE_InitRefAttribute(&attr, TEE_ATTR_SECRET_VALUE, key, session->key_size);
+    res = TEE_PopulateTransientObject(session->key_handle, &attr, 1);
+    if (res != TEE_SUCCESS)
+        goto err;
+    res = TEE_SetOperationKey(session->op_handle, session->key_handle);
+    if (res != TEE_SUCCESS)
+        goto err;
+    // Load IV
+    TEE_CipherInit(session->op_handle, iv, TA_AES_IV_SIZE);
+    return res;
+err:
+    if (session->op_handle != TEE_HANDLE_NULL)
+        TEE_FreeOperation(session->op_handle);
+    session->op_handle = TEE_HANDLE_NULL;
+    if (session->key_handle != TEE_HANDLE_NULL)
+        TEE_FreeTransientObject(session->key_handle);
+    session->key_handle = TEE_HANDLE_NULL;
+    return res;
 }
 
-static TEE_Result read_raw_object(uint32_t param_types, TEE_Param params[4])
+/*
+ * Read Raw Object from Secure Storage within TA
+ *
+ * This method reads an object from Secure Storage but is always invoked
+ * from within a TA. Hence why we don't check the parameter types.
+ */
+static TEE_Result read_raw_object(char *cli_id, size_t cli_id_size, char *data,
+        size_t data_sz)
 {
 	const uint32_t exp_param_types =
 		TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
@@ -146,33 +124,9 @@ static TEE_Result read_raw_object(uint32_t param_types, TEE_Param params[4])
 	TEE_ObjectInfo object_info;
 	TEE_Result res;
 	uint32_t read_bytes;
-	char *obj_id;
-	size_t obj_id_sz;
-	char *data;
-	size_t data_sz;
-
-	/*
-	 * Safely get the invocation parameters
-	 */
-	if (param_types != exp_param_types)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	obj_id_sz = params[0].memref.size;
-	obj_id = TEE_Malloc(obj_id_sz, 0);
-	if (!obj_id)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	TEE_MemMove(obj_id, params[0].memref.buffer, obj_id_sz);
-
-	data = (char *)params[1].memref.buffer;
-	data_sz = params[1].memref.size;
-
-	/*
-	 * Check the object exist and can be dumped into output buffer
-	 * then dump it.
-	 */
+    // Check if object is in memory
 	res = TEE_OpenPersistentObject(TEE_STORAGE_PRIVATE,
-					obj_id, obj_id_sz,
+					cli_id, cli_id_sz,
 					TEE_DATA_FLAG_ACCESS_READ |
 					TEE_DATA_FLAG_SHARE_READ,
 					&object);
@@ -181,13 +135,11 @@ static TEE_Result read_raw_object(uint32_t param_types, TEE_Param params[4])
 		TEE_Free(obj_id);
 		return res;
 	}
-
 	res = TEE_GetObjectInfo1(object, &object_info);
 	if (res != TEE_SUCCESS) {
 		EMSG("Failed to create persistent object, res=0x%08x", res);
 		goto exit;
 	}
-
 	if (object_info.dataSize > data_sz) {
 		/*
 		 * Provided buffer is too short.
@@ -197,7 +149,6 @@ static TEE_Result read_raw_object(uint32_t param_types, TEE_Param params[4])
 		res = TEE_ERROR_SHORT_BUFFER;
 		goto exit;
 	}
-
 	res = TEE_ReadObjectData(object, data, object_info.dataSize,
 				 &read_bytes);
 	if (res != TEE_SUCCESS || read_bytes != object_info.dataSize) {
@@ -205,13 +156,102 @@ static TEE_Result read_raw_object(uint32_t param_types, TEE_Param params[4])
 				res, read_bytes, object_info.dataSize);
 		goto exit;
 	}
-
-	/* Return the number of byte effectively filled */
 	params[1].memref.size = read_bytes;
 exit:
 	TEE_CloseObject(object);
-	TEE_Free(obj_id);
 	return res;
+}
+
+static TEE_Result cipher_buffer(void *sess, char *enc_data,
+        size_t enc_data_size, char *dec_data, size_t dec_data_size)
+{
+    aes_cipher *session;
+    session = (aes_cipher *) sess;
+    if (session->op_handle == TEE_HANDLE_NULL)
+        return TEE_ERROR_BAD_STATE;
+    return TEE_CipherUpdate(session->op_handle, enc_data, enc_data_size,
+            dec_data, dec_data_size)
+}
+
+static int get_key(char *cli_id, char *cli_key)
+{
+    // TODO Implement Cache Logic
+    size_t read_bytes;
+    if ((read_raw_object(cli_id, strlen(cli_id), cli_key, read_bytes) 
+            != TEE_SUCCESS))// || (read_bytes != TA_AES_KEY_SIZE))
+    {
+        return 1;
+    }
+    return 0;
+}
+
+static TEE_Result payload_reencryption(void *session, uint32_t param_types,
+        TEE_Param params[4])
+{
+    uint32_t exp_param_types = TEE_PARAM_TYPES(
+            TEE_PARAM_TYPE_MEMREF_INPUT,
+            TEE_PARAM_TYPE_MEMREF_INOUT,
+            TEE_PARAM_TYPE_NONE,
+            TEE_PARAM_TYPE_NONE);
+    if (param_types != exp_param_types)
+        return TEE_ERROR_BAD_PARAMETERS;
+    // TODO
+    // 1. Decrypt from Origin
+    char *ori_cli_id;
+    char *ori_cli_iv;
+    char *ori_cli_data;
+    size_t data_size = params[0].memref.size - TA_MQTTZ_CLI_ID_SZ 
+            - TA_AES_IV_SIZE;
+    ori_cli_id = TEE_Malloc(sizeof *ori_cli_id * (TA_MQTTZ_CLI_ID_SZ + 1), 0);
+    ori_cli_iv = TEE_Malloc(sizeof *ori_cli_id * (TA_AES_IV_SIZE + 1), 0);
+    ori_cli_data = TEE_Malloc(sizeof *ori_cli_id * (TA_AES_KEY_SIZE + 1), 0);
+    if (!(ori_cli_id && ori_cli_iv && ori_cli_data))
+    {
+        res = TEE_ERROR_OUT_OF_MEMORY;
+        goto exit;
+    }
+    TEE_MemMove(ori_cli_id, params[0].memref.buffer, TA_MQTTZ_CLI_ID_SZ);
+    ori_cli_id[TA_MQTTZ_CLI_ID_SZ] = '\0';
+    TEE_MemMove(ori_cli_iv, params[0].memref.buffer + TA_MQTTZ_CLI_ID_SZ,
+            TA_AES_IV_SIZE);
+    ori_cli_iv[TA_AES_IV_SIZE] = '\0';
+    TEE_MemMove(ori_cli_data, params[0].memref.buffer + TA_MQTTZ_CLI_ID_SZ
+            + TA_AES_IV_SIZE, data_size);
+    // 2. Read key from secure storage
+    char *ori_cli_key;
+    ori_cli_key = TEE_Malloc(sizeof *ori_cli_key * (TA_AES_KEY_SIZE + 1), 0);
+    if (get_key(ori_cli_id, ori_cli_key) != 0)
+    {
+        res = TEE_ERROR_OUT_OF_MEMORY;
+        goto exit;
+    }
+    // 2. Encrypt to Destination
+    if (alloc_resources(session, TA_AES_MODE_DECODE, ori_cli_key, ori_cli_iv)
+            != TEE_SUCCESS)
+    {
+        res = TEE_GENERIC;
+        goto exit;
+    }
+    char *dec_data;
+    dec_data = TEE_Malloc(sizeof *dec_data * data_size, 0);
+    if (!dec_data)
+    {
+        res = TEE_ERROR_OUT_OF_MEMORY;
+        goto exit;
+    }
+    if (cipher_buffer(session, ori_cli_data, data_size,
+            params[1].memref.buffer, &params[1].memref.size) != TEE_SUCCESS)
+    {
+        res = TEE_ERROR_GENERIC;
+        goto exit;
+    }
+    goto exit;
+exit:
+    TEE_Free(ori_cli_id);
+    TEE_Free(ori_cli_iv);
+    TEE_Free(ori_cli_data);
+    TEE_Free(ori_cli_key);
+    return res;
 }
 
 TEE_Result TA_CreateEntryPoint(void)
@@ -229,13 +269,25 @@ TEE_Result TA_OpenSessionEntryPoint(uint32_t __unused param_types,
 				    TEE_Param __unused params[4],
 				    void __unused **session)
 {
-	/* Nothing to do */
+    aes_cipher *sess;
+    sess = TEE_Malloc(sizeof *sess, 0);
+    if (!sess)
+        return TEE_ERROR_OUT_OF_MEMORY;
+    sess->key_handle = TEE_HANDLE_NULL;
+    sess->op_handle = TEE_HANDLE_NULL;
+    *session = (void *)sess;
 	return TEE_SUCCESS;
 }
 
 void TA_CloseSessionEntryPoint(void __unused *session)
 {
-	/* Nothing to do */
+    aes_cipher *sess;
+    sess = (aes_cipher *) session;
+    if (sess->key_handle != TEE_HANDLE_NULL)
+        TEE_FreeTransientObject(sess->key_handle);
+    if (sess->op_handle != TEE_HANDLE_NULL)
+        TEE_FreeOperation(sess->op_handle);
+    TEE_Free(sess);
 }
 
 TEE_Result TA_InvokeCommandEntryPoint(void __unused *session,
@@ -250,6 +302,8 @@ TEE_Result TA_InvokeCommandEntryPoint(void __unused *session,
 		return read_raw_object(param_types, params);
 	case TA_SECURE_STORAGE_CMD_DELETE:
 		return delete_object(param_types, params);
+    case TA_REENCRYPT:
+        return payload_reencryption(session, param_types, params);
 	default:
 		EMSG("Command ID 0x%x is not supported", command);
 		return TEE_ERROR_NOT_SUPPORTED;

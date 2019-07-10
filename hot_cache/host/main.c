@@ -22,6 +22,12 @@ struct test_ctx {
 	TEEC_Session sess;
 };
 
+typedef struct mqttz_client {
+    char *cli_id;
+    char *iv;
+    char *data;
+} mqttz_client;
+
 #define MAX         80
 #define PORT        9999
 #define REMOTE_IP   "10.0.2.2"
@@ -122,122 +128,123 @@ TEEC_Result write_secure_object(struct test_ctx *ctx, char *id,
 	return res;
 }
 
-
-void func(int sockfd, struct test_ctx* ctx)
+TEEC_Result payload_reencryption(struct test_ctx *ctx, mqttz_client *origin,
+        mqttz_client *dest)
 {
-    char buff[MAX];
-	char out_buff[MAX];
-	char cli_id[10]; // TODO: define ID format?
-	char cmd[4]; 
-    int n;
-	TEEC_Result res;
-	regex_t regex;
-	regmatch_t rm[3];
-	int reti;
-	reti = regcomp(&regex, "^(get|set)_key\\((.*?)\\)", REG_EXTENDED);
-	if (reti) {
-		printf("Could not compile regex!\n");
-		exit(1);
-	}
+    TEEC_Operation op;
+    uint32_t ori;
+    TEEC_Result res;
 
-    // Infinite Server Loop
-    for (;;) {
-        memset(buff, '\0', MAX);
-        memset(out_buff, '\0', MAX);
-		memset(cli_id, '\0', sizeof(cli_id));
-		memset(cmd, '\0', sizeof(cmd));
-        n = 0;
+    memset(&op, 0, sizeof op);
+    op.paramTypes = TEEC_PARAM_TYPES(
+            TEEC_MEMREF_TEMP_INPUT,
+            TEEC_MEMREF_TEMP_INOUT,
+            TEEC_NONE,
+            TEEC_NONE);
+    
+    // We need to deconstruct the struct the internal structure is lost
+    // in the REE -> TEE communication.
+    size_t ori_size = strlen(origin->cli_id) + strlen(origin->iv)
+            + strlen(origin->data);
+    char *tmp_ori = malloc(ori_size + 1);
+    strcpy(tmp_ori, origin->cli_id);
+    strcat(tmp_ori, origin->origin->iv);
+    strcat(tmp_ori, origin->data);
+    tmp_ori[ori_size] = '\0';
+    size_t dest_size = strlen(dest->cli_id) + strlen(dest->iv)
+            + strlen(dest->data);
+    char *tmp_dest = malloc(dest_size + 1);
+    strcpy(tmp_dest, dest->cli_id);
+    strcat(tmp_dest, dest->iv);
+    strcat(tmp_dest, dest->data);
+    tmp_ori[dest_size] = '\0';
+    op.params[0].tmpref.buffer = tmp_ori;
+    op.params[0].tmpref.size = ori_size;
+    op.params[1].tmpref.buffer = tmp_dest;
+    op.params[1].tmpref.size = dest_size;
+    res = TEEC_InvokeCommand(&ctx->sess, TA_REENCRYPT, &op, &ori);
 
-        // Process client's message
-        read(sockfd, buff, sizeof(buff));
-		// Debug:
-        printf("From client: %s", buff);
-		// Parse client's command
-		reti = regexec(&regex, buff, 3, rm, 0);
-		if (!reti) {
-			strncpy(cmd, &buff[rm[1].rm_so], (int) rm[1].rm_eo - rm[1].rm_so);
-			strncpy(cli_id, &buff[rm[2].rm_so], (int) rm[2].rm_eo - rm[2].rm_so);
-			if (strcmp(cmd, "get") == 0) {
-				strcpy(out_buff, "Get command parsed!\n");
-                // Check if id format is sane
-                // Check if cli_id is in Rich OS map
-                read_secure_object(ctx, cli_id, out_buff, sizeof(out_buff));
-			} else if (strcmp(cmd, "set") == 0) {
-				strcpy(out_buff, "Set command parsed!\n");
-                char *found = strchr(cli_id, ',');
-                if (found) {
-                    char *cl_id = strtok(cli_id, ",");
-                    char *cl_key = strtok(NULL, ",");
-                    // Check if cli_id in Rich OS map
-                    write_secure_object(ctx, cli_id, cl_key, sizeof(cl_key));
-                } else {
-                    printf("Have not provided enough arguments for set!\n");
-                }
-			} else {
-				strcpy(out_buff, "Wrong command introduced!\n");
-			}
-		} else {
-			strcpy(out_buff, "Wrong command introduced!\n");
-		}
-
-        // Send response to client
-        write (sockfd, out_buff, sizeof(out_buff));
+    switch(res)
+    {
+        case TEEC_SUCCESS:
+            printf("Reencryption finished succesfully!\n");
+            break;
+        default:
+            printf("Failed!\n");
     }
+
+    free(tmp_ori);
+    free(tmp_dest);
+    return res;
+}
+
+int parse_arguments(int argc, char *argv[], mqttz_client *origin,
+        mqttz_client *dest)
+{
+    if (argc != 7)
+    {
+        printf("MQTTZ Usage ERROR! Not right amount of parameters supplied.\n");
+        return 1;
+    }
+    else
+    {
+        // Origin Client ID
+        origin->cli_id = malloc(sizeof *(origin->cli_id) 
+                * strlen(argv[1]));
+        memset(origin->cli_id, '\0', strlen(argv[1]));
+        strcpy(origin->cli_id, argv[1]);
+        printf("First parameter: %s\n", origin->cli_id);
+        // Origin Client IV
+        origin->iv = malloc(sizeof *(origin->iv) * strlen(argv[2]));
+        memset(origin->iv, '\0', strlen(argv[2]));
+        strcpy(origin->iv, argv[2]);
+        // Origin Client Data
+        origin->data = malloc(sizeof *(origin->data) * strlen(argv[3]));
+        memset(origin->data, '\0', strlen(argv[3]));
+        strcpy(origin->data, argv[3]);
+        // Destination Client ID
+        dest->cli_id = malloc(sizeof *(dest->cli_id) * strlen(argv[4]));
+        memset(dest->cli_id, '\0', strlen(argv[4]));
+        strcpy(dest->cli_id, argv[4]);
+        // Destination Client IV
+        dest->iv = malloc(sizeof *(dest->iv) * strlen(argv[5]));
+        memset(dest->iv, '\0', strlen(argv[5]));
+        strcpy(dest->iv, argv[5]);
+        // Origin Client Data
+        dest->data = malloc(sizeof *(dest->data) 
+                * strlen(argv[6]));
+        memset(dest->data, '\0', strlen(argv[6]));
+        strcpy(dest->data, argv[6]);
+    }
+    return 0;
+}
+
+int free_client(mqttz_client *cli)
+{
+    free(cli->cli_id);
+    free(cli->iv);
+    free(cli->data);
+    free(cli);
 }
 
 int main(int argc, char *argv[])
 {
 	struct test_ctx ctx;
     struct timeval t1, t2;
+    mqttz_client *origin;
+    origin = malloc(sizeof *origin);
+    mqttz_client *dest;
+    dest = malloc(sizeof *dest);
 
     // Dummy TEE Context to check if all files are OK
 	prepare_tee_session(&ctx);
 
-    int server_fd, new_socket, valread;
-    struct sockaddr_in address;
-    int opt = 1;
-    int addrlen = sizeof(address);
-    char buffer[1024] = {0};
-    char *hello =  "Hello from server";
-
-    // Creating Socket File Descriptor
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
-        perror("Socket Failed");
-        exit(EXIT_FAILURE);
-    }
-
-    // Attaching to port 8080
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt,
-                                                            sizeof(opt))) {
-        perror("Set Socket Options Failed");
-        exit(EXIT_FAILURE);
-    }
-
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY; 
-    address.sin_port = htons( PORT );
-
-    if (bind(server_fd, (struct sockaddr *) &address, sizeof(address)) < 0) {
-        perror("Bind Failed");
-        exit(EXIT_FAILURE);
-    }
-    if (listen(server_fd, 3) < 0) {
-        perror("Listen Failed");
-        exit(EXIT_FAILURE);
-    }
-    if ((new_socket = accept(server_fd, (struct sockaddr *) &address,
-                    (socklen_t *) &addrlen)) < 0) {
-        perror("Accept Failed");
-        exit(EXIT_FAILURE);
-    }
-    
-    // Chatting between server and client
-    func(new_socket, &ctx);
-
-    // Close the socket when finished
-    close(server_fd);
+    parse_arguments(argc, argv, origin, dest);
+    payload_reencryption(&ctx, origin, dest);
 
     // Terminate Dummy TEE Context
 	terminate_tee_session(&ctx);
+    free_client(origin);
+    free_client(dest);
 	return 0;
 }
