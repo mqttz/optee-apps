@@ -28,9 +28,7 @@ typedef struct mqttz_client {
     char *data;
 } mqttz_client;
 
-#define MAX         80
-#define PORT        9999
-#define REMOTE_IP   "10.0.2.2"
+#define MQTTZ_MAX_MSG_SIZE              4096
 
 void prepare_tee_session(struct test_ctx *ctx)
 {
@@ -147,22 +145,25 @@ TEEC_Result payload_reencryption(struct test_ctx *ctx, mqttz_client *origin,
     size_t ori_size = strlen(origin->cli_id) + strlen(origin->iv)
             + strlen(origin->data);
     char *tmp_ori = malloc(ori_size + 1);
+    memset(tmp_ori, '\0', ori_size + 1);
     strcpy(tmp_ori, origin->cli_id);
-    strcat(tmp_ori, origin->origin->iv);
+    strcat(tmp_ori, origin->iv);
     strcat(tmp_ori, origin->data);
     tmp_ori[ori_size] = '\0';
+    printf("1st: %s\n", tmp_ori);
     size_t dest_size = strlen(dest->cli_id) + strlen(dest->iv)
-            + strlen(dest->data);
+            + MQTTZ_MAX_MSG_SIZE;
     char *tmp_dest = malloc(dest_size + 1);
+    memset(tmp_dest, '\0', dest_size + 1);
     strcpy(tmp_dest, dest->cli_id);
     strcat(tmp_dest, dest->iv);
-    strcat(tmp_dest, dest->data);
-    tmp_ori[dest_size] = '\0';
     op.params[0].tmpref.buffer = tmp_ori;
     op.params[0].tmpref.size = ori_size;
     op.params[1].tmpref.buffer = tmp_dest;
     op.params[1].tmpref.size = dest_size;
+    printf("Destination before sending: %s\n", tmp_dest);
     res = TEEC_InvokeCommand(&ctx->sess, TA_REENCRYPT, &op, &ori);
+    printf("Destination after sending: %s\n", tmp_dest);
 
     switch(res)
     {
@@ -181,40 +182,42 @@ TEEC_Result payload_reencryption(struct test_ctx *ctx, mqttz_client *origin,
 int parse_arguments(int argc, char *argv[], mqttz_client *origin,
         mqttz_client *dest)
 {
-    if (argc != 7)
+    if (argc != 6)
     {
         printf("MQTTZ Usage ERROR! Not right amount of parameters supplied.\n");
         return 1;
     }
     else
     {
+        int i;
+        for (i = 0; i < argc; i++)
+            printf("Argument %i: %s\n", i, argv[i]);
         // Origin Client ID
         origin->cli_id = malloc(sizeof *(origin->cli_id) 
-                * strlen(argv[1]));
-        memset(origin->cli_id, '\0', strlen(argv[1]));
+                * (strlen(argv[1]) + 1));
+        memset(origin->cli_id, '\0', (strlen(argv[1]) +1));
         strcpy(origin->cli_id, argv[1]);
         printf("First parameter: %s\n", origin->cli_id);
         // Origin Client IV
-        origin->iv = malloc(sizeof *(origin->iv) * strlen(argv[2]));
-        memset(origin->iv, '\0', strlen(argv[2]));
+        origin->iv = malloc(sizeof *(origin->iv) * (strlen(argv[2]) + 1));
+        memset(origin->iv, '\0', (strlen(argv[2]) + 1));
         strcpy(origin->iv, argv[2]);
         // Origin Client Data
-        origin->data = malloc(sizeof *(origin->data) * strlen(argv[3]));
-        memset(origin->data, '\0', strlen(argv[3]));
+        origin->data = malloc(sizeof *(origin->data) * (strlen(argv[3]) + 1));
+        memset(origin->data, '\0', (strlen(argv[3]) + 1));
         strcpy(origin->data, argv[3]);
         // Destination Client ID
-        dest->cli_id = malloc(sizeof *(dest->cli_id) * strlen(argv[4]));
-        memset(dest->cli_id, '\0', strlen(argv[4]));
+        dest->cli_id = malloc(sizeof *(dest->cli_id) * (strlen(argv[4]) + 1));
+        memset(dest->cli_id, '\0', (strlen(argv[4]) + 1));
         strcpy(dest->cli_id, argv[4]);
         // Destination Client IV
-        dest->iv = malloc(sizeof *(dest->iv) * strlen(argv[5]));
-        memset(dest->iv, '\0', strlen(argv[5]));
+        dest->iv = malloc(sizeof *(dest->iv) * (strlen(argv[5]) + 1));
+        memset(dest->iv, '\0', (strlen(argv[5]) + 1));
         strcpy(dest->iv, argv[5]);
         // Origin Client Data
-        dest->data = malloc(sizeof *(dest->data) 
-                * strlen(argv[6]));
-        memset(dest->data, '\0', strlen(argv[6]));
-        strcpy(dest->data, argv[6]);
+        dest->data = malloc(sizeof *(dest->data) * MQTTZ_MAX_MSG_SIZE);
+        memset(dest->data, '\0', MQTTZ_MAX_MSG_SIZE);
+        // strcpy(dest->data, argv[6]);
     }
     return 0;
 }
@@ -248,3 +251,5 @@ int main(int argc, char *argv[])
     free_client(dest);
 	return 0;
 }
+
+//./optee_hot_cache 123123123123 1111111111111111 holaholaholahoholahola 123123123123 1111111111111111
