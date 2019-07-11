@@ -314,7 +314,7 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
         goto exit;
     }
     printf("MQTTZ: Got key! %s\n", ori_cli_key);
-    // 2. Encrypt to Destination
+    // 2. Decrypt Inbound Traffic w/ Origin Key
     if (alloc_resources(session, TA_AES_MODE_DECODE) != TEE_SUCCESS)
     {
         res = TEE_ERROR_GENERIC;
@@ -341,13 +341,40 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
         goto exit;
     }
     printf("MQTTZ: Allocated decrypted data!\n");
-    if (cipher_buffer(session, ori_cli_data, data_size,
-            params[1].memref.buffer, &params[1].memref.size) != TEE_SUCCESS)
+    if (cipher_buffer(session, ori_cli_data, data_size, dec_data, 
+            &dec_data_size) != TEE_SUCCESS)
     {
         res = TEE_ERROR_GENERIC;
         goto exit;
     }
-    printf("MQTTZ: Finished buffer ciphering!\n");
+    printf("MQTTZ: Finished decrypting, now we encrypt with the other key!\n");
+    printf("MQTTZ: Decrypted data: %s\n", dec_data);
+    // 3. Encrypt outbound traffic with destination key
+    TEE_Free(ori_cli_id);
+    TEE_Free(ori_cli_iv);
+    TEE_Free(ori_cli_data);
+    TEE_Free(ori_cli_key);
+    char *dest_cli_id;
+
+    if (alloc_resources(session, TA_AES_MODE_ENCODE) != TEE_SUCCESS)
+    {
+        res = TEE_ERROR_GENERIC;
+        goto exit;
+    }
+    printf("MQTTZ: Initialized AES Session!\n");
+    if (set_aes_key(session, ori_cli_key) != TEE_SUCCESS)
+    {
+        printf("MQTTZ-ERROR: set_aes_key failed\n");
+        res = TEE_ERROR_GENERIC;
+        goto exit;
+    }
+    if (set_aes_iv(session, ori_cli_iv) != TEE_SUCCESS)
+    {
+        printf("MQTTZ-ERROR: set_aes_iv failed\n");
+        res = TEE_ERROR_GENERIC;
+        goto exit;
+    }
+    res = TEE_SUCCESS;
     goto exit;
 exit:
     TEE_Free(ori_cli_id);
