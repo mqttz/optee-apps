@@ -43,6 +43,7 @@
 
 // MQTTZ Related Constants
 #define TA_MQTTZ_CLI_ID_SZ      12
+#define TA_MQTTZ_MAX_MSG_SZ     4096
 
 /*
  * TA_SECURE_STORAGE_CMD_READ_RAW - Create and fill a secure storage file

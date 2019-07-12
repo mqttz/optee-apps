@@ -29,6 +29,8 @@ typedef struct mqttz_client {
 } mqttz_client;
 
 #define MQTTZ_MAX_MSG_SIZE              4096
+#define AES_IV_SIZE                     16
+#define AES_KEY_SIZE                    32
 
 void prepare_tee_session(struct test_ctx *ctx)
 {
@@ -151,12 +153,10 @@ TEEC_Result payload_reencryption(struct test_ctx *ctx, mqttz_client *origin,
     strcat(tmp_ori, origin->data);
     tmp_ori[ori_size] = '\0';
     printf("1st: %s\n", tmp_ori);
-    size_t dest_size = strlen(dest->cli_id) + strlen(dest->iv)
-            + MQTTZ_MAX_MSG_SIZE;
+    size_t dest_size = strlen(dest->cli_id) + AES_IV_SIZE + MQTTZ_MAX_MSG_SIZE;
     char *tmp_dest = malloc(dest_size + 1);
     memset(tmp_dest, '\0', dest_size + 1);
     strcpy(tmp_dest, dest->cli_id);
-    strcat(tmp_dest, dest->iv);
     op.params[0].tmpref.buffer = tmp_ori;
     op.params[0].tmpref.size = ori_size;
     op.params[1].tmpref.buffer = tmp_dest;
@@ -182,7 +182,7 @@ TEEC_Result payload_reencryption(struct test_ctx *ctx, mqttz_client *origin,
 int parse_arguments(int argc, char *argv[], mqttz_client *origin,
         mqttz_client *dest)
 {
-    if (argc != 6)
+    if (argc != 5)
     {
         printf("MQTTZ Usage ERROR! Not right amount of parameters supplied.\n");
         return 1;
@@ -211,9 +211,9 @@ int parse_arguments(int argc, char *argv[], mqttz_client *origin,
         memset(dest->cli_id, '\0', (strlen(argv[4]) + 1));
         strcpy(dest->cli_id, argv[4]);
         // Destination Client IV
-        dest->iv = malloc(sizeof *(dest->iv) * (strlen(argv[5]) + 1));
-        memset(dest->iv, '\0', (strlen(argv[5]) + 1));
-        strcpy(dest->iv, argv[5]);
+        dest->iv = malloc(sizeof *(dest->iv) * (AES_IV_SIZE + 1));
+        memset(dest->iv, '\0', (AES_IV_SIZE + 1));
+        // strcpy(dest->iv, argv[5]);
         // Origin Client Data
         dest->data = malloc(sizeof *(dest->data) * MQTTZ_MAX_MSG_SIZE);
         memset(dest->data, '\0', MQTTZ_MAX_MSG_SIZE);
@@ -252,4 +252,4 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
-//./optee_hot_cache 123123123123 1111111111111111 holaholaholahoholahola 123123123123 1111111111111111
+//./optee_hot_cache 123123123123 1111111111111111 holaholaholahoholahola 123123123123
