@@ -26,6 +26,7 @@
  */
 
 #include <err.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -34,6 +35,8 @@
 
 /* TA API: UUID and command IDs */
 #include <save_key_ta.h>
+
+#define MQTTZ_CLI_ID_SIZE 12
 
 /* TEE resources */
 struct test_ctx {
@@ -74,8 +77,10 @@ TEEC_Result write_secure_key(struct test_ctx *ctx, char *id, char *data,
 	TEEC_Result res;
 
 	memset(&op, 0, sizeof(op));
-	op.paramTypes = TEEC_PARAM_TYPES(TEEC_MEMREF_TEMP_INPUT,
-					 TEEC_MEMREF_TEMP_INPUT, TEEC_MEMREF_TEMP_INPUT,
+	op.paramTypes = TEEC_PARAM_TYPES(
+                     TEEC_MEMREF_TEMP_INPUT,
+					 TEEC_MEMREF_TEMP_INPUT,
+                     TEEC_NONE,
                      TEEC_NONE);
 
 	op.params[0].tmpref.buffer = id;
@@ -84,8 +89,7 @@ TEEC_Result write_secure_key(struct test_ctx *ctx, char *id, char *data,
 	op.params[1].tmpref.buffer = data;
 	op.params[1].tmpref.size = strlen(data);
 
-	op.params[2].tmpref.buffer = mode;
-	op.params[2].tmpref.size = sizeof(int);
+	//op.params[2].value.a = 0;
 
 	res = TEEC_InvokeCommand(&ctx->sess, TA_SECURE_STORAGE_CMD_WRITE_RAW,
 				 &op, &origin);
@@ -110,8 +114,6 @@ int parse_arguments(int argc, char *argv[], char *cli_id, int *mode,
         printf("MQTTZ-ERROR: Too few parameters supplied!\n");
         return 1;
     }
-    cli_id = malloc(sizeof *cli_id * (strlen(argv[1]) + 1));
-    memset(cli_id, '\0', (strlen(argv[1]) + 1));
     strcpy(cli_id, argv[1]);
     *mode = atoi(argv[2]);
     if (strlen(cli_id) != MQTTZ_CLI_ID_SIZE)
@@ -119,8 +121,6 @@ int parse_arguments(int argc, char *argv[], char *cli_id, int *mode,
         printf("MQTTZ-ERROR: Bad Cli ID introduced!\n");
         return 1;
     }
-    cli_key = malloc(sizeof *cli_key * (strlen(argv[3]) + 1));
-    memset(cli_key, '\0', (strlen(argv[3]) + 1));
     strcpy(cli_key, argv[3]);
     return 0;
 }
@@ -129,13 +129,16 @@ int main(int argc, char *argv[])
 {
 	struct test_ctx ctx;
     char *cli_id;
+    cli_id = malloc(sizeof *cli_id * (strlen(argv[1]) + 1));
+    memset(cli_id, '\0', (strlen(argv[1]) + 1));
     char *cli_key;
+    cli_key = malloc(sizeof *cli_key * (strlen(argv[3]) + 1));
+    memset(cli_key, '\0', (strlen(argv[3]) + 1));
     int mode;
 	TEEC_Result res;
 
-	printf("Prepare session with the TA\n");
 	prepare_tee_session(&ctx);
-    if (!parse_arguments(argc, argv))
+    if (parse_arguments(argc, argv, cli_id, &mode, cli_key) != 0)
     {
         printf("MQTTZ-ERROR: Error parsing command line arguments!\n");
         return 1;

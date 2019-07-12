@@ -32,9 +32,9 @@
 #ifndef USER_TA_HEADER_DEFINES_H
 #define USER_TA_HEADER_DEFINES_H
 
-#include <secure_storage_ta.h>
+#include <save_key_ta.h>
 
-#define TA_UUID				TA_SECURE_STORAGE_UUID
+#define TA_UUID				TA_SAVE_KEY_UUID
 
 #define TA_FLAGS			(TA_FLAG_EXEC_DDR | TA_FLAG_SINGLE_INSTANCE)
 #define TA_STACK_SIZE			(2 * 1024)

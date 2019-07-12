@@ -179,11 +179,6 @@ static TEE_Result set_aes_iv(void *session, char *iv)
 static TEE_Result read_raw_object(char *cli_id, size_t cli_id_size, char *data,
         size_t data_sz)
 {
-	const uint32_t exp_param_types =
-		TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
-				TEE_PARAM_TYPE_MEMREF_OUTPUT,
-				TEE_PARAM_TYPE_NONE,
-				TEE_PARAM_TYPE_NONE);
 	TEE_ObjectHandle object;
 	TEE_ObjectInfo object_info;
 	TEE_Result res;

@@ -163,16 +163,17 @@ TEEC_Result payload_reencryption(struct test_ctx *ctx, mqttz_client *origin,
     op.params[1].tmpref.size = dest_size;
     //printf("Destination before sending: %s\n", tmp_dest);
     res = TEEC_InvokeCommand(&ctx->sess, TA_REENCRYPT, &op, &ori);
-    //printf("Destination after sending: %s\n", tmp_dest);
+    printf("%s\n", tmp_dest);
 
+    /*
     switch(res)
     {
         case TEEC_SUCCESS:
-            //printf("Reencryption finished succesfully!\n");
+            printf("Reencryption finished succesfully!\n");
             break;
         default:
-            //printf("Failed!\n");
-    }
+            printf("Failed!\n");
+    }*/
 
     free(tmp_ori);
     free(tmp_dest);
@@ -224,12 +225,13 @@ int free_client(mqttz_client *cli)
     free(cli->iv);
     free(cli->data);
     free(cli);
+    return 0;
 }
 
 int main(int argc, char *argv[])
 {
 	struct test_ctx ctx;
-    struct timeval t1, t2;
+    //struct timeval t1, t2;
     mqttz_client *origin;
     origin = malloc(sizeof *origin);
     mqttz_client *dest;
@@ -249,3 +251,4 @@ int main(int argc, char *argv[])
 }
 
 //./optee_hot_cache 123123123123 1111111111111111 holaholaholahoholahola 123123123123
+//./optee_save_key 123123123123 0 11111111111111111111111111111111

@@ -32,8 +32,10 @@
 static TEE_Result create_raw_object(uint32_t param_types, TEE_Param params[4])
 {
 	const uint32_t exp_param_types =
-		TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
-				TEE_PARAM_TYPE_MEMREF_INPUT, TEE_PARAM_TYPE_MEMREF_INPUT,
+		TEE_PARAM_TYPES(
+                TEE_PARAM_TYPE_MEMREF_INPUT,
+				TEE_PARAM_TYPE_MEMREF_INPUT,
+                TEE_PARAM_TYPE_NONE,
 				TEE_PARAM_TYPE_NONE);
 	TEE_ObjectHandle object;
 	TEE_Result res;
