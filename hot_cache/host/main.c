@@ -152,7 +152,7 @@ TEEC_Result payload_reencryption(struct test_ctx *ctx, mqttz_client *origin,
     strcat(tmp_ori, origin->iv);
     strcat(tmp_ori, origin->data);
     tmp_ori[ori_size] = '\0';
-    printf("1st: %s\n", tmp_ori);
+    //printf("1st: %s\n", tmp_ori);
     size_t dest_size = strlen(dest->cli_id) + AES_IV_SIZE + MQTTZ_MAX_MSG_SIZE;
     char *tmp_dest = malloc(dest_size + 1);
     memset(tmp_dest, '\0', dest_size + 1);
@@ -161,17 +161,17 @@ TEEC_Result payload_reencryption(struct test_ctx *ctx, mqttz_client *origin,
     op.params[0].tmpref.size = ori_size;
     op.params[1].tmpref.buffer = tmp_dest;
     op.params[1].tmpref.size = dest_size;
-    printf("Destination before sending: %s\n", tmp_dest);
+    //printf("Destination before sending: %s\n", tmp_dest);
     res = TEEC_InvokeCommand(&ctx->sess, TA_REENCRYPT, &op, &ori);
-    printf("Destination after sending: %s\n", tmp_dest);
+    //printf("Destination after sending: %s\n", tmp_dest);
 
     switch(res)
     {
         case TEEC_SUCCESS:
-            printf("Reencryption finished succesfully!\n");
+            //printf("Reencryption finished succesfully!\n");
             break;
         default:
-            printf("Failed!\n");
+            //printf("Failed!\n");
     }
 
     free(tmp_ori);
@@ -189,15 +189,11 @@ int parse_arguments(int argc, char *argv[], mqttz_client *origin,
     }
     else
     {
-        int i;
-        for (i = 0; i < argc; i++)
-            printf("Argument %i: %s\n", i, argv[i]);
         // Origin Client ID
         origin->cli_id = malloc(sizeof *(origin->cli_id) 
                 * (strlen(argv[1]) + 1));
         memset(origin->cli_id, '\0', (strlen(argv[1]) +1));
         strcpy(origin->cli_id, argv[1]);
-        printf("First parameter: %s\n", origin->cli_id);
         // Origin Client IV
         origin->iv = malloc(sizeof *(origin->iv) * (strlen(argv[2]) + 1));
         memset(origin->iv, '\0', (strlen(argv[2]) + 1));
