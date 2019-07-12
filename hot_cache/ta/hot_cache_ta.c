@@ -425,18 +425,18 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     strcpy((char *) params[1].memref.buffer + TA_MQTTZ_CLI_ID_SZ 
             + TA_AES_IV_SIZE, dest_cli_data);
     res = TEE_SUCCESS;
+    //printf("This fails?\n");
     goto exit;
 exit:
-    TEE_Free(ori_cli_id);
-    TEE_Free(ori_cli_iv);
-    TEE_Free(ori_cli_data);
-    TEE_Free(ori_cli_key);
-    TEE_Free(dest_cli_id);
-    TEE_Free(dest_cli_iv);
-    TEE_Free(dest_cli_data);
-    TEE_Free(dest_cli_key);
-    TEE_Free(dec_data);
-    return res;
+//    TEE_Free((void *)ori_cli_id);
+//    TEE_Free((void *)ori_cli_iv);
+//    TEE_Free((void *)ori_cli_data);
+//    TEE_Free((void *)ori_cli_key);
+//    TEE_Free((void *)dest_cli_id);
+//    TEE_Free((void *)dest_cli_iv);
+//    TEE_Free((void *)dest_cli_data);
+//    TEE_Free((void *)dest_cli_key);
+//    TEE_Free((void *)dec_data);
     return res;
 }
 
