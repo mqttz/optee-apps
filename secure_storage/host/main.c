@@ -189,7 +189,7 @@ double stdev(double* arr, size_t total_size)
     return sqrt(sq_sum / num_elements - pow(avg(arr, total_size), 2));
 }
 
-int main(int argc, char *argv[])
+int main(void)
 {
 	struct test_ctx ctx;
     struct timeval t1, t2;

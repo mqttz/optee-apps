@@ -3,7 +3,6 @@
 1. [Introduction](#1-introduction)
 2. [List of Implemented Applications](#2-list-of-implemented-applications)
 
-
 ## 1. Introduction
 This document describes the different benchmarking applciations developed with the Op-TEE framework together with the implemented min-apps that will pave the way for the MQTT-TZ implementation.
 
