@@ -10,9 +10,9 @@ OBJS = main.o
 
 CFLAGS += -Wall -I../ta/include -I./include
 CFLAGS += -I$(TEEC_EXPORT)/include
-LDADD += -lteec -L$(TEEC_EXPORT)/lib -lm -lssl -lcrypto
+LDADD += -lteec -L$(TEEC_EXPORT)/lib
 
-BINARY = optee_example_aes
+BINARY = optee_save_key
 
 .PHONY: all
 all: $(BINARY)

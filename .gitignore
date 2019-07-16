@@ -11,10 +11,15 @@ GTAGS
 *.o
 *.swp
 *.ta
+Android.mk
 cscope.*
 out/
-hello_world/host/optee_example_hello_world
-random/host/optee_example_random
+
+# Ignore all examples that I do not use
+random
+docs
+acipher
+hotp
 aes/host/optee_example_aes
-hotp/host/optee_example_hotp
+hello_world/host/optee_example_hello_world
 secure_storage/host/optee_example_secure_storage

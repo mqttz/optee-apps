@@ -1,4 +1,4 @@
-project (optee_example_secure_storage C)
+project (optee_save_key C)
 
 set (SRC host/main.c)
 
@@ -8,8 +8,6 @@ target_include_directories(${PROJECT_NAME}
 			   PRIVATE ta/include
 			   PRIVATE include)
 
-target_link_libraries (${PROJECT_NAME}
-               PRIVATE teec
-               PRIVATE m)
+target_link_libraries (${PROJECT_NAME} PRIVATE teec)
 
 install (TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_BINDIR})

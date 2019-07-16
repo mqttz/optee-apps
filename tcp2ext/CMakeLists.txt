@@ -1,4 +1,4 @@
-project (optee_example_secure_storage C)
+project (optee_tcp2ext C)
 
 set (SRC host/main.c)
 

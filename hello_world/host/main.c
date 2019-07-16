@@ -28,6 +28,7 @@
 #include <err.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/time.h>
 
 /* OP-TEE TEE client API (built by optee_client) */
 #include <tee_client_api.h>
@@ -43,6 +44,8 @@ int main(void)
 	TEEC_Operation op;
 	TEEC_UUID uuid = TA_HELLO_WORLD_UUID;
 	uint32_t err_origin;
+    struct timeval t1, t2;
+    double elapsedTime;
 
 	/* Initialize a context connecting us to the TEE */
 	res = TEEC_InitializeContext(NULL, &ctx);
@@ -82,13 +85,19 @@ int main(void)
 	 * TA_HELLO_WORLD_CMD_INC_VALUE is the actual function in the TA to be
 	 * called.
 	 */
-	printf("Invoking TA to increment %d\n", op.params[0].value.a);
+    printf("CSG-CSEM: O brave new (normal) world! \n");
+	printf("CSG-CSEM: Invoking Secure Increment with value %d\n", op.params[0].value.a);
+    gettimeofday(&t1, NULL);
 	res = TEEC_InvokeCommand(&sess, TA_HELLO_WORLD_CMD_INC_VALUE, &op,
 				 &err_origin);
 	if (res != TEEC_SUCCESS)
 		errx(1, "TEEC_InvokeCommand failed with code 0x%x origin 0x%x",
 			res, err_origin);
-	printf("TA incremented value to %d\n", op.params[0].value.a);
+    gettimeofday(&t2, NULL);
+	printf("CSG-CSEM: TA incremented value to %d\n", op.params[0].value.a);
+    elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000.0;
+    elapsedTime += (t2.tv_usec - t1.tv_usec) / 1000.0;
+    printf("CSG-CSEM: Elapsed time: %f ms\n", elapsedTime);
 
 	/*
 	 * We're done with the TA, close the session and
