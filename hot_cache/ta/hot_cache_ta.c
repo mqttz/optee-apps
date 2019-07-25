@@ -247,11 +247,9 @@ static int get_key(char *cli_id, char *cli_key)
     {
         // If no data, create random key FIXME
         char fake_key[TA_AES_KEY_SIZE] = "11111111111111111111111111111111";
-        printf("MQTTZ: Key not found! Created fake key: %s\n", fake_key);
-        //cli_key = (char *) TEE_Malloc(sizeof *cli_key * (TA_AES_KEY_SIZE + 1), 0);
-        //memset(cli_key, 0xa5, TA_AES_KEY_SIZE);
         strcpy(cli_key, fake_key);
         cli_key[TA_AES_KEY_SIZE] = '\0';
+        printf("MQTTZ: Key not found! Created fake key: %s\n", cli_key);
         return 0;
     }
     return 0;
@@ -278,10 +276,10 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
             - TA_AES_IV_SIZE;
     ori_cli_id = (char *) TEE_Malloc(sizeof *ori_cli_id 
             * (TA_MQTTZ_CLI_ID_SZ + 1), 0);
-    ori_cli_iv = (char *) TEE_Malloc(sizeof *ori_cli_id 
+    ori_cli_iv = (char *) TEE_Malloc(sizeof *ori_cli_iv 
             * (TA_AES_IV_SIZE + 1), 0);
-    ori_cli_data = (char *) TEE_Malloc(sizeof *ori_cli_id 
-            * (TA_AES_KEY_SIZE + 1), 0);
+    ori_cli_data = (char *) TEE_Malloc(sizeof *ori_cli_data 
+            * (TA_MQTTZ_MAX_MSG_SZ + 1), 0);
     if (!(ori_cli_id && ori_cli_iv && ori_cli_data))
     {
         res = TEE_ERROR_OUT_OF_MEMORY;
@@ -293,8 +291,8 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     TEE_MemMove(ori_cli_iv, (char *) params[0].memref.buffer + TA_MQTTZ_CLI_ID_SZ,
             TA_AES_IV_SIZE);
     ori_cli_iv[TA_AES_IV_SIZE] = '\0';
-    TEE_MemMove(ori_cli_data, (char *) params[0].memref.buffer + TA_MQTTZ_CLI_ID_SZ
-            + TA_AES_IV_SIZE, data_size);
+    TEE_MemMove(ori_cli_data, (char *) params[0].memref.buffer 
+            + TA_MQTTZ_CLI_ID_SZ + TA_AES_IV_SIZE, data_size);
     printf("MQTTZ: Loaded Values\n");
     printf("\t- Cli id: %s\n", ori_cli_id);
     printf("\t- Cli iv: %s\n", ori_cli_iv);
@@ -346,13 +344,9 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     printf("MQTTZ: Finished decrypting, now we encrypt with the other key!\n");
     printf("MQTTZ: Decrypted data: %s\n", dec_data);
     // 3. Encrypt outbound traffic with destination key
-    printf("MQTTZ: Freed previous resources we don't need anymore.\n");
     // TEE_Free(ori_cli_id);
-    printf("MQTTZ: Freed previous resources we don't need anymore.\n");
     // TEE_Free(ori_cli_iv);
-    printf("MQTTZ: Freed previous resources we don't need anymore.\n");
     // TEE_Free(ori_cli_data);
-    printf("MQTTZ: Freed previous resources we don't need anymore.\n");
     // TEE_Free(ori_cli_key);
     printf("MQTTZ: Freed previous resources we don't need anymore.\n");
     char *dest_cli_id;
@@ -360,9 +354,9 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     char *dest_cli_data;
     dest_cli_id = (char *) TEE_Malloc(sizeof *dest_cli_id 
             * (TA_MQTTZ_CLI_ID_SZ + 1), 0);
-    dest_cli_iv = (char *) TEE_Malloc(sizeof *dest_cli_id 
+    dest_cli_iv = (char *) TEE_Malloc(sizeof *dest_cli_iv 
             * (TA_AES_IV_SIZE + 1), 0);
-    dest_cli_data = (char *) TEE_Malloc(sizeof *dest_cli_id 
+    dest_cli_data = (char *) TEE_Malloc(sizeof *dest_cli_data 
             * (TA_MQTTZ_MAX_MSG_SZ + 1), 0);
     if (!(dest_cli_id && dest_cli_iv && dest_cli_data))
     {
