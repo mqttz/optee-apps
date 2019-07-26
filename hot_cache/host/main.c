@@ -31,6 +31,48 @@ typedef struct mqttz_client {
 #define MQTTZ_MAX_MSG_SIZE              4096
 #define AES_IV_SIZE                     16
 #define AES_KEY_SIZE                    32
+// Benchmark Parameters
+#define NUMBER_TESTS                    100
+#define NUMBER_WORLDS                   2
+#define KEY_MODES                       2
+#define KEY_IN_MEM                      0
+#define KEY_IN_SS                       1
+#define NW                              0
+#define SW                              1
+
+// Times are in miliseconds
+typedef struct mqttz_times {
+    struct timeval t_ret_dec_key;
+    struct timeval t_dec;
+    struct timeval t_ret_enc_key;
+    struct timeval t_enc;
+    double ret_dec_key[NUMBER_WORLDS][KEY_MODES * NUMBER_TESTS];
+    double dec_times[NUMBER_WORLDS][KEY_MODES * NUMBER_TESTS];
+    double ret_enc_key[NUMBER_WORLDS][KEY_MODES * NUMBER_TESTS];
+    double enc_times[NUMBER_WORLDS][KEY_MODES * NUMBER_TESTS];
+    int key_mode;
+    int world;
+    bool benchmark;
+} mqttz_times;
+
+
+double avg(double* arr, int num_elements)
+{
+    double ret = 0.0;
+    for (int i = 0; i < num_elements; i++)
+        ret += *(arr + i);
+    return ret / num_elements; 
+}
+
+
+double stdev(double* arr, int num_elements)
+{
+    double sq_sum = 0.0;
+    for (int i = 0; i < num_elements; i++)
+        sq_sum += pow(*(arr + i), 2);
+    return sqrt(sq_sum / num_elements - pow(avg(arr, num_elements), 2));
+}
+
 
 void prepare_tee_session(struct test_ctx *ctx)
 {
@@ -51,6 +93,7 @@ void prepare_tee_session(struct test_ctx *ctx)
 			res, origin);
 }
 
+
 void terminate_tee_session(struct test_ctx *ctx)
 {
 	TEEC_CloseSession(&ctx->sess);
@@ -58,79 +101,15 @@ void terminate_tee_session(struct test_ctx *ctx)
 }
 
 
-TEEC_Result read_secure_object(struct test_ctx *ctx, char *id,
-			char *data, size_t data_len)
-{
-	TEEC_Operation op;
-	uint32_t origin;
-	TEEC_Result res;
-	size_t id_len = strlen(id);
-
-	memset(&op, 0, sizeof(op));
-	op.paramTypes = TEEC_PARAM_TYPES(TEEC_MEMREF_TEMP_INPUT,
-					 TEEC_MEMREF_TEMP_OUTPUT,
-					 TEEC_NONE, TEEC_NONE);
-
-	op.params[0].tmpref.buffer = id;
-	op.params[0].tmpref.size = id_len;
-
-	op.params[1].tmpref.buffer = data;
-	op.params[1].tmpref.size = data_len;
-
-	res = TEEC_InvokeCommand(&ctx->sess,
-				 TA_SECURE_STORAGE_CMD_READ_RAW,
-				 &op, &origin);
-	switch (res) {
-	case TEEC_SUCCESS:
-	case TEEC_ERROR_SHORT_BUFFER:
-	case TEEC_ERROR_ITEM_NOT_FOUND:
-		break;
-	default:
-		printf("Command READ_RAW failed: 0x%x / %u\n", res, origin);
-	}
-
-	return res;
-}
-
-
-TEEC_Result write_secure_object(struct test_ctx *ctx, char *id,
-			char *data, size_t data_len)
-{
-	TEEC_Operation op;
-	uint32_t origin;
-	TEEC_Result res;
-	size_t id_len = strlen(id);
-
-	memset(&op, 0, sizeof(op));
-	op.paramTypes = TEEC_PARAM_TYPES(TEEC_MEMREF_TEMP_INPUT,
-					 TEEC_MEMREF_TEMP_INPUT,
-					 TEEC_NONE, TEEC_NONE);
-
-	op.params[0].tmpref.buffer = id;
-	op.params[0].tmpref.size = id_len;
-
-	op.params[1].tmpref.buffer = data;
-	op.params[1].tmpref.size = data_len;
-
-	res = TEEC_InvokeCommand(&ctx->sess,
-				 TA_SECURE_STORAGE_CMD_WRITE_RAW,
-				 &op, &origin);
-	if (res != TEEC_SUCCESS)
-		printf("Command WRITE_RAW failed: 0x%x / %u\n", res, origin);
-
-	switch (res) {
-	case TEEC_SUCCESS:
-		break;
-	default:
-		printf("Command WRITE_RAW failed: 0x%x / %u\n", res, origin);
-	}
-
-	return res;
-}
-
 TEEC_Result payload_reencryption(struct test_ctx *ctx, mqttz_client *origin,
-        mqttz_client *dest)
+        mqttz_client *dest, mqttz_times *times)
 {
+    // Dummy
+    gettimeofday(&(times->t_ret_dec_key), NULL); 
+    gettimeofday(&(times->t_dec), NULL); 
+    gettimeofday(&(times->t_ret_enc_key), NULL); 
+    gettimeofday(&(times->t_enc), NULL); 
+
     TEEC_Operation op;
     uint32_t ori;
     TEEC_Result res;
@@ -151,7 +130,7 @@ TEEC_Result payload_reencryption(struct test_ctx *ctx, mqttz_client *origin,
     strcpy(tmp_ori, origin->cli_id);
     strcat(tmp_ori, origin->iv);
     strcat(tmp_ori, origin->data);
-    tmp_ori[ori_size] = '\0';
+    tmp_ori[ori_size] = '\0'; 
     //printf("1st: %s\n", tmp_ori);
     size_t dest_size = strlen(dest->cli_id) + AES_IV_SIZE + MQTTZ_MAX_MSG_SIZE;
     char *tmp_dest = malloc(dest_size + 1);
@@ -228,20 +207,145 @@ int free_client(mqttz_client *cli)
     return 0;
 }
 
+int benchmark(struct test_ctx *ctx, mqttz_client *origin, mqttz_client *dest,
+        mqttz_times *times)
+{
+    FILE *fp;
+
+    // Launch Tests
+    int test, world, key;
+    for (test = 0; test < NUMBER_TESTS; test++)
+    {
+        for (world = 0; world < NUMBER_WORLDS; world++)
+        {
+            times->world = world;
+            for (key = 0; key < KEY_MODES; key++)
+            {
+                times->key_mode = key;
+                payload_reencryption(ctx, origin, dest, times);
+                int pos = key * NUMBER_TESTS + test;
+                times->ret_dec_key[world][pos] = (times->t_ret_dec_key).tv_sec
+                    * 1000.0 + (times->t_ret_dec_key).tv_usec / 1000.0;
+                times->dec_times[world][pos] = (times->t_dec).tv_sec
+                    * 1000.0 + (times->t_dec).tv_usec / 1000.0;
+                times->ret_enc_key[world][pos] = (times->t_ret_enc_key).tv_sec
+                    * 1000.0 + (times->t_ret_enc_key).tv_usec / 1000.0;
+                times->enc_times[world][pos] = (times->t_enc).tv_sec
+                    * 1000.0 + (times->t_enc).tv_usec / 1000.0;
+            }
+        }
+    }
+
+    // Print Results
+    fp = fopen("results/ub1_s_mem.dat", "w");
+    fprintf(fp, "%f %f ",
+            avg(&(times->ret_dec_key[SW][KEY_IN_MEM * NUMBER_TESTS]),
+            NUMBER_TESTS),
+            stdev(&(times->ret_dec_key[SW][KEY_IN_MEM * NUMBER_TESTS]),
+            NUMBER_TESTS));
+    fprintf(fp, "%f %f ",
+            avg(&(times->dec_times[SW][KEY_IN_MEM * NUMBER_TESTS]),
+            NUMBER_TESTS),
+            stdev(&(times->dec_times[SW][KEY_IN_MEM * NUMBER_TESTS]),
+            NUMBER_TESTS));
+    fprintf(fp, "%f %f ",
+            avg(&(times->ret_enc_key[SW][KEY_IN_MEM * NUMBER_TESTS]),
+            NUMBER_TESTS),
+            stdev(&(times->ret_enc_key[SW][KEY_IN_MEM * NUMBER_TESTS]),
+            NUMBER_TESTS));
+    fprintf(fp, "%f %f\n",
+            avg(&(times->enc_times[SW][KEY_IN_MEM * NUMBER_TESTS]),
+            NUMBER_TESTS),
+            stdev(&(times->enc_times[SW][KEY_IN_MEM * NUMBER_TESTS]),
+            NUMBER_TESTS));
+    fclose(fp);
+    fp = fopen("results/ub1_ns_mem.dat", "w");
+    fprintf(fp, "%f %f ",
+            avg(&(times->ret_dec_key[NW][KEY_IN_MEM * NUMBER_TESTS]),
+            NUMBER_TESTS),
+            stdev(&(times->ret_dec_key[NW][KEY_IN_MEM * NUMBER_TESTS]),
+            NUMBER_TESTS));
+    fprintf(fp, "%f %f ", 
+            avg(&(times->dec_times[NW][KEY_IN_MEM * NUMBER_TESTS]),
+            NUMBER_TESTS),
+            stdev(&(times->dec_times[NW][KEY_IN_MEM * NUMBER_TESTS]),
+            NUMBER_TESTS));
+    fprintf(fp, "%f %f ",
+            avg(&(times->ret_enc_key[NW][KEY_IN_MEM * NUMBER_TESTS]),
+            NUMBER_TESTS),
+            stdev(&(times->ret_enc_key[NW][KEY_IN_MEM * NUMBER_TESTS]),
+            NUMBER_TESTS));
+    fprintf(fp, "%f %f\n",
+            avg(&(times->enc_times[NW][KEY_IN_MEM * NUMBER_TESTS]),
+            NUMBER_TESTS),
+            stdev(&(times->enc_times[NW][KEY_IN_MEM * NUMBER_TESTS]),
+            NUMBER_TESTS));
+    fclose(fp);
+    fp = fopen("results/ub1_s_ss.dat", "w");
+    fprintf(fp, "%f %f ",
+            avg(&(times->ret_dec_key[SW][KEY_IN_SS * NUMBER_TESTS]),
+            NUMBER_TESTS),
+            stdev(&(times->ret_dec_key[SW][KEY_IN_SS * NUMBER_TESTS]),
+            NUMBER_TESTS));
+    fprintf(fp, "%f %f ",
+            avg(&(times->dec_times[SW][KEY_IN_SS * NUMBER_TESTS]),
+            NUMBER_TESTS),
+            stdev(&(times->dec_times[SW][KEY_IN_SS * NUMBER_TESTS]),
+            NUMBER_TESTS));
+    fprintf(fp, "%f %f ",
+            avg(&(times->ret_enc_key[SW][KEY_IN_SS * NUMBER_TESTS]),
+            NUMBER_TESTS),
+            stdev(&(times->ret_enc_key[SW][KEY_IN_SS * NUMBER_TESTS]),
+            NUMBER_TESTS));
+    fprintf(fp, "%f %f\n",
+            avg(&(times->enc_times[SW][KEY_IN_SS * NUMBER_TESTS]),
+            NUMBER_TESTS),
+            stdev(&(times->enc_times[SW][KEY_IN_SS * NUMBER_TESTS]),
+            NUMBER_TESTS));
+    fclose(fp);
+    fp = fopen("results/ub1_ns_ss.dat", "w");
+    fprintf(fp, "%f %f ",
+            avg(&(times->ret_dec_key[NW][KEY_IN_SS * NUMBER_TESTS]),
+            NUMBER_TESTS),
+            stdev(&(times->ret_dec_key[NW][KEY_IN_SS * NUMBER_TESTS]),
+            NUMBER_TESTS));
+    fprintf(fp, "%f %f ",
+            avg(&(times->dec_times[NW][KEY_IN_SS * NUMBER_TESTS]),
+            NUMBER_TESTS),
+            stdev(&(times->dec_times[NW][KEY_IN_SS * NUMBER_TESTS]),
+            NUMBER_TESTS));
+    fprintf(fp, "%f %f ",
+            avg(&(times->ret_enc_key[NW][KEY_IN_SS * NUMBER_TESTS]),
+            NUMBER_TESTS),
+            stdev(&(times->ret_enc_key[NW][KEY_IN_SS * NUMBER_TESTS]),
+            NUMBER_TESTS));
+    fprintf(fp, "%f %f\n",
+            avg(&(times->enc_times[NW][KEY_IN_SS * NUMBER_TESTS]),
+            NUMBER_TESTS),
+            stdev(&(times->enc_times[NW][KEY_IN_SS * NUMBER_TESTS]),
+            NUMBER_TESTS));
+    fclose(fp);
+}
+
 int main(int argc, char *argv[])
 {
 	struct test_ctx ctx;
-    //struct timeval t1, t2;
     mqttz_client *origin;
     origin = malloc(sizeof *origin);
     mqttz_client *dest;
     dest = malloc(sizeof *dest);
+    mqttz_times *times;
+    times = malloc(sizeof *times);
+    times->benchmark = 1;
 
     // Dummy TEE Context to check if all files are OK
 	prepare_tee_session(&ctx);
 
     parse_arguments(argc, argv, origin, dest);
-    payload_reencryption(&ctx, origin, dest);
+    if (times->benchmark)
+        benchmark(&ctx, origin, dest, times);
+    else
+        payload_reencryption(&ctx, origin, dest, times);
 
     // Terminate Dummy TEE Context
 	terminate_tee_session(&ctx);
