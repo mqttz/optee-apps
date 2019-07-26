@@ -246,8 +246,8 @@ static int get_key(char *cli_id, char *cli_key)
             != TEE_SUCCESS))// || (read_bytes != TA_AES_KEY_SIZE))
     {
         // If no data, create random key FIXME
-        char fake_key[TA_AES_KEY_SIZE] = "11111111111111111111111111111111";
-        strcpy(cli_key, fake_key);
+        char fke_key[TA_AES_KEY_SIZE + 1] = "11111111111111111111111111111111";
+        strcpy(cli_key, fke_key);
         cli_key[TA_AES_KEY_SIZE] = '\0';
         printf("MQTTZ: Key not found! Created fake key: %s\n", cli_key);
         return 0;
@@ -286,20 +286,23 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
         goto exit;
     }
     printf("MQTTZ: Allocated input args\n");
-    TEE_MemMove(ori_cli_id, (char *) params[0].memref.buffer, TA_MQTTZ_CLI_ID_SZ);
+    TEE_MemMove(ori_cli_id, (char *) params[0].memref.buffer,
+            TA_MQTTZ_CLI_ID_SZ);
     ori_cli_id[TA_MQTTZ_CLI_ID_SZ] = '\0';
-    TEE_MemMove(ori_cli_iv, (char *) params[0].memref.buffer + TA_MQTTZ_CLI_ID_SZ,
-            TA_AES_IV_SIZE);
+    TEE_MemMove(ori_cli_iv, (char *) params[0].memref.buffer
+            + TA_MQTTZ_CLI_ID_SZ, TA_AES_IV_SIZE);
     ori_cli_iv[TA_AES_IV_SIZE] = '\0';
     TEE_MemMove(ori_cli_data, (char *) params[0].memref.buffer 
             + TA_MQTTZ_CLI_ID_SZ + TA_AES_IV_SIZE, data_size);
+    ori_cli_data[data_size] = '\0';
     printf("MQTTZ: Loaded Values\n");
     printf("\t- Cli id: %s\n", ori_cli_id);
     printf("\t- Cli iv: %s\n", ori_cli_iv);
     printf("\t- Cli data: %s\n", ori_cli_data);
     // 2. Read key from secure storage
     char *ori_cli_key;
-    ori_cli_key = (char *) TEE_Malloc(sizeof *ori_cli_key * (TA_AES_KEY_SIZE + 1), 0);
+    ori_cli_key = (char *) TEE_Malloc(sizeof *ori_cli_key 
+            * (TA_AES_KEY_SIZE + 1), 0);
     printf("MQTTZ: Allocated Origin Cli Key\n");
     if (get_key(ori_cli_id, ori_cli_key) != 0)
     {
@@ -308,7 +311,9 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     }
     printf("MQTTZ: Got Origin Key! %s\n", ori_cli_key);
     // 2. Decrypt Inbound Traffic w/ Origin Key
-    if (alloc_resources(session, TA_AES_MODE_DECODE) != TEE_SUCCESS)
+    // FIXME FIXME FIXME
+    //if (alloc_resources(session, TA_AES_MODE_DECODE) != TEE_SUCCESS)
+    if (alloc_resources(session, TA_AES_MODE_ENCODE) != TEE_SUCCESS)
     {
         res = TEE_ERROR_GENERIC;
         goto exit;
@@ -328,7 +333,7 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     }
     char *dec_data;
     size_t dec_data_size = TA_MQTTZ_MAX_MSG_SZ;
-    dec_data = (char *) TEE_Malloc(sizeof *dec_data * data_size, 0);
+    dec_data = (char *) TEE_Malloc(sizeof *dec_data * dec_data_size, 0);
     if (!dec_data)
     {
         res = TEE_ERROR_OUT_OF_MEMORY;
@@ -364,10 +369,12 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
         goto exit;
     }
     printf("MQTTZ: Allocated Destination Cli Data. \n");
-    TEE_MemMove(dest_cli_id, (char *) params[1].memref.buffer, TA_MQTTZ_CLI_ID_SZ);
+    TEE_MemMove(dest_cli_id, (char *) params[1].memref.buffer,
+            TA_MQTTZ_CLI_ID_SZ);
     // Get Destination Client Key from Secure Storage
     char *dest_cli_key;
-    dest_cli_key = (char *) TEE_Malloc(sizeof *dest_cli_key * (TA_AES_KEY_SIZE + 1), 0);
+    dest_cli_key = (char *) TEE_Malloc(sizeof *dest_cli_key
+            * (TA_AES_KEY_SIZE + 1), 0);
     printf("MQTTZ: Allocated Destination Cli Key\n");
     if (get_key(dest_cli_id, dest_cli_key) != 0)
     {
@@ -375,7 +382,9 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
         goto exit;
     }
     printf("MQTTZ: Got Destination Key! %s\n", dest_cli_key);
-    if (alloc_resources(session, TA_AES_MODE_ENCODE) != TEE_SUCCESS)
+    // FIXME 
+    //if (alloc_resources(session, TA_AES_MODE_ENCODE) != TEE_SUCCESS)
+    if (alloc_resources(session, TA_AES_MODE_DECODE) != TEE_SUCCESS)
     {
         res = TEE_ERROR_GENERIC;
         goto exit;
@@ -389,7 +398,7 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     }
     printf("MQTTZ: Set Destination Key in Session\n");
     // Set random IV for encryption TODO
-    char fake_iv[TA_AES_IV_SIZE] = "1111111111111111";
+    char fake_iv[TA_AES_IV_SIZE + 1] = "1111111111111111";
     strcpy(dest_cli_iv, fake_iv);
     printf("This is the initial IV: %s\n", dest_cli_iv);
     if (set_aes_iv(session, dest_cli_iv) != TEE_SUCCESS)
