@@ -30,6 +30,7 @@
 
 #include <tee_internal_api.h>
 #include <tee_internal_api_extensions.h>
+#include <utee_defines.h>
 
 #include <hot_cache_ta.h>
 
@@ -259,6 +260,8 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
         TEE_Param params[4])
 {
     TEE_Result res;
+    TEE_Time t1, t2, t3, t4, t5;
+    TEE_GetSystemTime(&t1);
     uint32_t exp_param_types = TEE_PARAM_TYPES(
             TEE_PARAM_TYPE_MEMREF_INPUT,
             TEE_PARAM_TYPE_MEMREF_INOUT,
@@ -310,6 +313,7 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
         goto exit;
     }
     printf("MQTTZ: Got Origin Key! %s\n", ori_cli_key);
+    TEE_GetSystemTime(&t2);
     // 2. Decrypt Inbound Traffic w/ Origin Key
     // FIXME FIXME FIXME
     //if (alloc_resources(session, TA_AES_MODE_DECODE) != TEE_SUCCESS)
@@ -348,6 +352,7 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     }
     printf("MQTTZ: Finished decrypting, now we encrypt with the other key!\n");
     printf("MQTTZ: Decrypted data: %s\n", dec_data);
+    TEE_GetSystemTime(&t3);
     // 3. Encrypt outbound traffic with destination key
     // TEE_Free(ori_cli_id);
     // TEE_Free(ori_cli_iv);
@@ -382,6 +387,7 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
         goto exit;
     }
     printf("MQTTZ: Got Destination Key! %s\n", dest_cli_key);
+    TEE_GetSystemTime(&t4);
     // FIXME 
     //if (alloc_resources(session, TA_AES_MODE_ENCODE) != TEE_SUCCESS)
     if (alloc_resources(session, TA_AES_MODE_DECODE) != TEE_SUCCESS)
@@ -418,6 +424,10 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     printf("MQTTZ: Finished encrypting!\n");
     printf("MQTTZ: Encrypted Data: %s\n", dest_cli_data);
     printf("MQTTZ: This is the final IV: %s\n", dest_cli_iv);
+    TEE_GetSystemTime(&t5);
+    TEE_Time jeje;
+    TEE_TIME_SUB(t5, t1, jeje);
+    printf("MQTTZ: Time elapsed: %f\n", (float) (jeje).seconds * 1000 + (jeje).millis); 
     // Rebuild the return value
     strcpy((char *) params[1].memref.buffer + TA_MQTTZ_CLI_ID_SZ, dest_cli_iv);
     strcpy((char *) params[1].memref.buffer + TA_MQTTZ_CLI_ID_SZ 

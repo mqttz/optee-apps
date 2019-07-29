@@ -32,7 +32,7 @@ typedef struct mqttz_client {
 #define AES_IV_SIZE                     16
 #define AES_KEY_SIZE                    32
 // Benchmark Parameters
-#define NUMBER_TESTS                    100
+#define NUMBER_TESTS                    2 //100
 #define NUMBER_WORLDS                   2
 #define KEY_MODES                       2
 #define KEY_IN_MEM                      0
@@ -115,11 +115,22 @@ TEEC_Result payload_reencryption(struct test_ctx *ctx, mqttz_client *origin,
     TEEC_Result res;
 
     memset(&op, 0, sizeof op);
-    op.paramTypes = TEEC_PARAM_TYPES(
-            TEEC_MEMREF_TEMP_INPUT,
-            TEEC_MEMREF_TEMP_INOUT,
-            TEEC_NONE,
-            TEEC_NONE);
+    if (times->benchmark)
+    {
+        op.paramTypes = TEEC_PARAM_TYPES(
+                TEEC_MEMREF_TEMP_INPUT,
+                TEEC_MEMREF_TEMP_INOUT,
+                TEEC_NONE,
+                TEEC_NONE);
+    }
+    else
+    {
+        op.paramTypes = TEEC_PARAM_TYPES(
+                TEEC_MEMREF_TEMP_INPUT,
+                TEEC_MEMREF_TEMP_INOUT,
+                TEEC_NONE,
+                TEEC_NONE);
+    }
     
     // We need to deconstruct the struct the internal structure is lost
     // in the REE -> TEE communication.
@@ -213,6 +224,7 @@ int benchmark(struct test_ctx *ctx, mqttz_client *origin, mqttz_client *dest,
     FILE *fp;
 
     // Launch Tests
+    printf("MQT-TZ: Starting Benchmarking!\n");
     int test, world, key;
     for (test = 0; test < NUMBER_TESTS; test++)
     {
@@ -222,8 +234,11 @@ int benchmark(struct test_ctx *ctx, mqttz_client *origin, mqttz_client *dest,
             for (key = 0; key < KEY_MODES; key++)
             {
                 times->key_mode = key;
+	            prepare_tee_session(ctx);
                 payload_reencryption(ctx, origin, dest, times);
+	            terminate_tee_session(ctx);
                 int pos = key * NUMBER_TESTS + test;
+                printf("%i %i\n", world, pos);
                 times->ret_dec_key[world][pos] = (times->t_ret_dec_key).tv_sec
                     * 1000.0 + (times->t_ret_dec_key).tv_usec / 1000.0;
                 times->dec_times[world][pos] = (times->t_dec).tv_sec
@@ -235,14 +250,26 @@ int benchmark(struct test_ctx *ctx, mqttz_client *origin, mqttz_client *dest,
             }
         }
     }
+    printf("MQT-TZ: Finished benchmarking, printing to file!\n");
 
     // Print Results
     fp = fopen("results/ub1_s_mem.dat", "w");
+    printf("Not even here?\n");
+    int i = 0;
+    printf("%f\n", times->ret_dec_key[0][0]);
+    printf("%f\n", times->ret_dec_key[0][i]);
+    printf("%f\n", times->ret_dec_key[0][2]);
+    printf("%f\n", times->ret_dec_key[0][3]);
+    double *tt = &times->ret_dec_key[0][0];
+    for (i = 0; i < 2; i++)
+        printf("%f\n", times->ret_dec_key[0][i]);
+        //printf("%f ", *(tt + i));
     fprintf(fp, "%f %f ",
             avg(&(times->ret_dec_key[SW][KEY_IN_MEM * NUMBER_TESTS]),
             NUMBER_TESTS),
             stdev(&(times->ret_dec_key[SW][KEY_IN_MEM * NUMBER_TESTS]),
             NUMBER_TESTS));
+    printf("Not even here?\n");
     fprintf(fp, "%f %f ",
             avg(&(times->dec_times[SW][KEY_IN_MEM * NUMBER_TESTS]),
             NUMBER_TESTS),
@@ -259,6 +286,7 @@ int benchmark(struct test_ctx *ctx, mqttz_client *origin, mqttz_client *dest,
             stdev(&(times->enc_times[SW][KEY_IN_MEM * NUMBER_TESTS]),
             NUMBER_TESTS));
     fclose(fp);
+    printf("First done?\n");
     fp = fopen("results/ub1_ns_mem.dat", "w");
     fprintf(fp, "%f %f ",
             avg(&(times->ret_dec_key[NW][KEY_IN_MEM * NUMBER_TESTS]),
@@ -281,6 +309,7 @@ int benchmark(struct test_ctx *ctx, mqttz_client *origin, mqttz_client *dest,
             stdev(&(times->enc_times[NW][KEY_IN_MEM * NUMBER_TESTS]),
             NUMBER_TESTS));
     fclose(fp);
+    printf("Second done?\n");
     fp = fopen("results/ub1_s_ss.dat", "w");
     fprintf(fp, "%f %f ",
             avg(&(times->ret_dec_key[SW][KEY_IN_SS * NUMBER_TESTS]),
@@ -303,6 +332,7 @@ int benchmark(struct test_ctx *ctx, mqttz_client *origin, mqttz_client *dest,
             stdev(&(times->enc_times[SW][KEY_IN_SS * NUMBER_TESTS]),
             NUMBER_TESTS));
     fclose(fp);
+    printf("Third done?\n");
     fp = fopen("results/ub1_ns_ss.dat", "w");
     fprintf(fp, "%f %f ",
             avg(&(times->ret_dec_key[NW][KEY_IN_SS * NUMBER_TESTS]),
@@ -325,6 +355,7 @@ int benchmark(struct test_ctx *ctx, mqttz_client *origin, mqttz_client *dest,
             stdev(&(times->enc_times[NW][KEY_IN_SS * NUMBER_TESTS]),
             NUMBER_TESTS));
     fclose(fp);
+    printf("MQT-TZ: Finished printing to file!\n");
 }
 
 int main(int argc, char *argv[])
@@ -339,16 +370,20 @@ int main(int argc, char *argv[])
     times->benchmark = 1;
 
     // Dummy TEE Context to check if all files are OK
-	prepare_tee_session(&ctx);
+	//prepare_tee_session(&ctx);
 
     parse_arguments(argc, argv, origin, dest);
     if (times->benchmark)
+    {
+	    //prepare_tee_session(&ctx);
         benchmark(&ctx, origin, dest, times);
+	    //terminate_tee_session(&ctx);
+    }
     else
         payload_reencryption(&ctx, origin, dest, times);
 
     // Terminate Dummy TEE Context
-	terminate_tee_session(&ctx);
+	//terminate_tee_session(&ctx);
     free_client(origin);
     free_client(dest);
 	return 0;
