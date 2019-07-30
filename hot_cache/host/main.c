@@ -411,9 +411,9 @@ int benchmark(struct test_ctx *ctx, mqttz_client *origin, mqttz_client *dest,
             stdev(&times->ret_enc_key[NW][KEY_IN_MEM * NUMBER_TESTS],
             NUMBER_TESTS));
     printf("%f %f\n",
-            avg(&(times->enc_times[SW][KEY_IN_MEM * NUMBER_TESTS]),
+            avg(&times->enc_times[NW][KEY_IN_MEM * NUMBER_TESTS],
             NUMBER_TESTS),
-            stdev(&(times->enc_times[SW][KEY_IN_MEM * NUMBER_TESTS]),
+            stdev(&times->enc_times[NW][KEY_IN_MEM * NUMBER_TESTS],
             NUMBER_TESTS));
     printf("SW - MEM\n");
     printf("%f %f\n",
