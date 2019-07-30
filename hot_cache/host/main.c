@@ -60,10 +60,10 @@ double avg(double* arr, int num_elements)
 {
     int i = 0;
     double ret = 0.0;
-    printf("hello\n");
+    //printf("hello\n");
     for (i = 0; i < num_elements; i++)
     {
-        printf("%f\n", ret);
+        //printf("%f\n", ret);
         ret += *(arr + i);
     }
     return ret / num_elements; 
@@ -256,113 +256,115 @@ int benchmark(struct test_ctx *ctx, mqttz_client *origin, mqttz_client *dest,
             }
         }
     }
-    printf("MQT-TZ: Finished benchmarking, printing to file!\n");
+    printf("MQT-TZ: Finished benchmarking, printing results!\n");
 
     // Print Results
-    fp = fopen("results/ub1_s_mem.dat", "w");
-    printf("Not even here?\n");
-    int i = 0;
-    printf("%f\n", times->ret_dec_key[0][0]);
-    printf("%f\n", times->ret_dec_key[0][i]);
-    printf("%f\n", times->ret_dec_key[0][2]);
-    printf("%f\n", times->ret_dec_key[0][3]);
-    double *tt = &times->ret_dec_key[0][0];
-    printf("%f\n", *(tt + 1));
-    printf("%f\n", *(tt + i));
-    for (i = 0; i < 4; i++)
-        printf("%f\n", *(tt + i));
+    //fp = fopen("results/ub1_s_mem.dat", "w");
+    //int i = 0;
+//    printf("%f\n", times->ret_dec_key[0][0]);
+//    printf("%f\n", times->ret_dec_key[0][i]);
+//    printf("%f\n", times->ret_dec_key[0][2]);
+//    printf("%f\n", times->ret_dec_key[0][3]);
+//    double *tt = &times->ret_dec_key[0][0];
+//    printf("%f\n", *(tt + 1));
+//    printf("%f\n", *(tt + i));
+//    for (i = 0; i < 4; i++)
+//        printf("%f\n", *(tt + i));
         //printf("%f\n", times->ret_dec_key[0][i]);
     //fprintf(fp, "%f %f ",
-    printf("%f %f ",
-            avg(times->ret_dec_key, 2),
-            stdev(times->ret_dec_key, 2));
-    printf("Not even here?\n");
-    fprintf(fp, "%f %f ",
-            avg(&(times->dec_times[SW][KEY_IN_MEM * NUMBER_TESTS]),
+    printf("Retrieve Decrypt Key, Decrypt, Retrieve Encrypt Key, Encrypt\n");
+    printf("NW - MEM\n");
+    printf("%f %f\n",
+            avg(&times->ret_dec_key[NW][KEY_IN_MEM * NUMBER_TESTS], 
+                NUMBER_TESTS),
+            stdev(&times->ret_dec_key[NW][KEY_IN_MEM * NUMBER_TESTS],
+                NUMBER_TESTS));
+    printf("%f %f\n",
+            avg(&times->dec_times[NW][KEY_IN_MEM * NUMBER_TESTS],
             NUMBER_TESTS),
-            stdev(&(times->dec_times[SW][KEY_IN_MEM * NUMBER_TESTS]),
+            stdev(&times->dec_times[NW][KEY_IN_MEM * NUMBER_TESTS],
             NUMBER_TESTS));
-    fprintf(fp, "%f %f ",
-            avg(&(times->ret_enc_key[SW][KEY_IN_MEM * NUMBER_TESTS]),
+    printf("%f %f\n",
+            avg(&times->ret_enc_key[NW][KEY_IN_MEM * NUMBER_TESTS],
             NUMBER_TESTS),
-            stdev(&(times->ret_enc_key[SW][KEY_IN_MEM * NUMBER_TESTS]),
+            stdev(&times->ret_enc_key[NW][KEY_IN_MEM * NUMBER_TESTS],
             NUMBER_TESTS));
-    fprintf(fp, "%f %f\n",
+    printf("%f %f\n",
             avg(&(times->enc_times[SW][KEY_IN_MEM * NUMBER_TESTS]),
             NUMBER_TESTS),
             stdev(&(times->enc_times[SW][KEY_IN_MEM * NUMBER_TESTS]),
             NUMBER_TESTS));
-    fclose(fp);
-    printf("First done?\n");
-    fp = fopen("results/ub1_ns_mem.dat", "w");
-    fprintf(fp, "%f %f ",
-            avg(&(times->ret_dec_key[NW][KEY_IN_MEM * NUMBER_TESTS]),
+    //fclose(fp);
+    //fp = fopen("results/ub1_ns_mem.dat", "w");
+    printf("SW - MEM\n");
+    printf("%f %f\n",
+            avg(&times->ret_dec_key[SW][KEY_IN_MEM * NUMBER_TESTS],
             NUMBER_TESTS),
-            stdev(&(times->ret_dec_key[NW][KEY_IN_MEM * NUMBER_TESTS]),
+            stdev(&times->ret_dec_key[SW][KEY_IN_MEM * NUMBER_TESTS],
             NUMBER_TESTS));
-    fprintf(fp, "%f %f ", 
-            avg(&(times->dec_times[NW][KEY_IN_MEM * NUMBER_TESTS]),
+    printf("%f %f\n", 
+            avg(&times->dec_times[SW][KEY_IN_MEM * NUMBER_TESTS],
             NUMBER_TESTS),
-            stdev(&(times->dec_times[NW][KEY_IN_MEM * NUMBER_TESTS]),
+            stdev(&times->dec_times[SW][KEY_IN_MEM * NUMBER_TESTS],
             NUMBER_TESTS));
-    fprintf(fp, "%f %f ",
-            avg(&(times->ret_enc_key[NW][KEY_IN_MEM * NUMBER_TESTS]),
+    printf("%f %f\n",
+            avg(&times->ret_enc_key[SW][KEY_IN_MEM * NUMBER_TESTS],
             NUMBER_TESTS),
-            stdev(&(times->ret_enc_key[NW][KEY_IN_MEM * NUMBER_TESTS]),
+            stdev(&times->ret_enc_key[SW][KEY_IN_MEM * NUMBER_TESTS],
             NUMBER_TESTS));
-    fprintf(fp, "%f %f\n",
-            avg(&(times->enc_times[NW][KEY_IN_MEM * NUMBER_TESTS]),
+    printf("%f %f\n",
+            avg(&times->enc_times[SW][KEY_IN_MEM * NUMBER_TESTS],
             NUMBER_TESTS),
-            stdev(&(times->enc_times[NW][KEY_IN_MEM * NUMBER_TESTS]),
+            stdev(&times->enc_times[SW][KEY_IN_MEM * NUMBER_TESTS],
             NUMBER_TESTS));
-    fclose(fp);
-    printf("Second done?\n");
-    fp = fopen("results/ub1_s_ss.dat", "w");
-    fprintf(fp, "%f %f ",
-            avg(&(times->ret_dec_key[SW][KEY_IN_SS * NUMBER_TESTS]),
+    //fclose(fp);
+    //fp = fopen("results/ub1_s_ss.dat", "w");
+    printf("NW - S\n");
+    printf("%f %f ",
+            avg(&times->ret_dec_key[NW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS),
-            stdev(&(times->ret_dec_key[SW][KEY_IN_SS * NUMBER_TESTS]),
+            stdev(&times->ret_dec_key[NW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS));
-    fprintf(fp, "%f %f ",
-            avg(&(times->dec_times[SW][KEY_IN_SS * NUMBER_TESTS]),
+    printf("%f %f ",
+            avg(&times->dec_times[NW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS),
-            stdev(&(times->dec_times[SW][KEY_IN_SS * NUMBER_TESTS]),
+            stdev(&times->dec_times[NW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS));
-    fprintf(fp, "%f %f ",
-            avg(&(times->ret_enc_key[SW][KEY_IN_SS * NUMBER_TESTS]),
+    printf("%f %f ",
+            avg(&times->ret_enc_key[NW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS),
-            stdev(&(times->ret_enc_key[SW][KEY_IN_SS * NUMBER_TESTS]),
+            stdev(&times->ret_enc_key[NW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS));
-    fprintf(fp, "%f %f\n",
-            avg(&(times->enc_times[SW][KEY_IN_SS * NUMBER_TESTS]),
+    printf("%f %f\n",
+            avg(&times->enc_times[NW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS),
-            stdev(&(times->enc_times[SW][KEY_IN_SS * NUMBER_TESTS]),
+            stdev(&times->enc_times[NW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS));
-    fclose(fp);
-    printf("Third done?\n");
-    fp = fopen("results/ub1_ns_ss.dat", "w");
-    fprintf(fp, "%f %f ",
-            avg(&(times->ret_dec_key[NW][KEY_IN_SS * NUMBER_TESTS]),
+    //fclose(fp);
+    //fp = fopen("results/ub1_ns_ss.dat", "w");
+    printf("SW - SS\n");
+    printf("%f %f ",
+            avg(&times->ret_dec_key[SW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS),
-            stdev(&(times->ret_dec_key[NW][KEY_IN_SS * NUMBER_TESTS]),
+            stdev(&times->ret_dec_key[SW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS));
-    fprintf(fp, "%f %f ",
-            avg(&(times->dec_times[NW][KEY_IN_SS * NUMBER_TESTS]),
+    printf("%f %f ",
+            avg(&times->dec_times[SW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS),
-            stdev(&(times->dec_times[NW][KEY_IN_SS * NUMBER_TESTS]),
+            stdev(&times->dec_times[SW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS));
-    fprintf(fp, "%f %f ",
-            avg(&(times->ret_enc_key[NW][KEY_IN_SS * NUMBER_TESTS]),
+    printf("%f %f ",
+            avg(&times->ret_enc_key[SW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS),
-            stdev(&(times->ret_enc_key[NW][KEY_IN_SS * NUMBER_TESTS]),
+            stdev(&times->ret_enc_key[SW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS));
-    fprintf(fp, "%f %f\n",
-            avg(&(times->enc_times[NW][KEY_IN_SS * NUMBER_TESTS]),
+    printf("%f %f\n",
+            avg(&times->enc_times[SW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS),
-            stdev(&(times->enc_times[NW][KEY_IN_SS * NUMBER_TESTS]),
+            stdev(&times->enc_times[SW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS));
-    fclose(fp);
-    printf("MQT-TZ: Finished printing to file!\n");
+    //fclose(fp);
+    printf("MQT-TZ: Finished printing results!\n");
 }
 
 int main(int argc, char *argv[])
