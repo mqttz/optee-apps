@@ -58,9 +58,14 @@ typedef struct mqttz_times {
 
 double avg(double* arr, int num_elements)
 {
+    int i = 0;
     double ret = 0.0;
-    for (int i = 0; i < num_elements; i++)
+    printf("hello\n");
+    for (i = 0; i < num_elements; i++)
+    {
+        printf("%f\n", ret);
         ret += *(arr + i);
+    }
     return ret / num_elements; 
 }
 
@@ -68,6 +73,7 @@ double avg(double* arr, int num_elements)
 double stdev(double* arr, int num_elements)
 {
     double sq_sum = 0.0;
+    printf("%i\n", num_elements);
     for (int i = 0; i < num_elements; i++)
         sq_sum += pow(*(arr + i), 2);
     return sqrt(sq_sum / num_elements - pow(avg(arr, num_elements), 2));
@@ -261,14 +267,15 @@ int benchmark(struct test_ctx *ctx, mqttz_client *origin, mqttz_client *dest,
     printf("%f\n", times->ret_dec_key[0][2]);
     printf("%f\n", times->ret_dec_key[0][3]);
     double *tt = &times->ret_dec_key[0][0];
-    for (i = 0; i < 2; i++)
-        printf("%f\n", times->ret_dec_key[0][i]);
-        //printf("%f ", *(tt + i));
-    fprintf(fp, "%f %f ",
-            avg(&(times->ret_dec_key[SW][KEY_IN_MEM * NUMBER_TESTS]),
-            NUMBER_TESTS),
-            stdev(&(times->ret_dec_key[SW][KEY_IN_MEM * NUMBER_TESTS]),
-            NUMBER_TESTS));
+    printf("%f\n", *(tt + 1));
+    printf("%f\n", *(tt + i));
+    for (i = 0; i < 4; i++)
+        printf("%f\n", *(tt + i));
+        //printf("%f\n", times->ret_dec_key[0][i]);
+    //fprintf(fp, "%f %f ",
+    printf("%f %f ",
+            avg(times->ret_dec_key, 2),
+            stdev(times->ret_dec_key, 2));
     printf("Not even here?\n");
     fprintf(fp, "%f %f ",
             avg(&(times->dec_times[SW][KEY_IN_MEM * NUMBER_TESTS]),
