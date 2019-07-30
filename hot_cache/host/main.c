@@ -2,6 +2,10 @@
 #include <err.h>
 #include <math.h>
 #include <netinet/in.h> 
+#include <openssl/conf.h>
+#include <openssl/err.h>
+#include <openssl/evp.h>
+#include <openssl/rand.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -60,10 +64,8 @@ double avg(double* arr, int num_elements)
 {
     int i = 0;
     double ret = 0.0;
-    //printf("hello\n");
     for (i = 0; i < num_elements; i++)
     {
-        //printf("%f\n", ret);
         ret += *(arr + i);
     }
     return ret / num_elements; 
@@ -73,24 +75,149 @@ double avg(double* arr, int num_elements)
 double stdev(double* arr, int num_elements)
 {
     double sq_sum = 0.0;
-    printf("%i\n", num_elements);
     for (int i = 0; i < num_elements; i++)
         sq_sum += pow(*(arr + i), 2);
     return sqrt(sq_sum / num_elements - pow(avg(arr, num_elements), 2));
 }
 
+// Error handling for encryption and decryption in the NS world usign OpenSSl
+void handleErrors(void)
+{
+    ERR_print_errors_fp(stderr);
+    abort();
+}
+
+// Encryption in the NS world using OpenSSL
+int encrypt(unsigned char *plain_text, int plain_text_len, unsigned char *key,
+        unsigned char *iv, unsigned char *cipher_text, int key_size)
+{
+    EVP_CIPHER_CTX *ctx;
+    int len;
+    int cipher_text_len;
+    // Create and initialise the context
+    if (!(ctx = EVP_CIPHER_CTX_new()))
+        handleErrors();
+    // Initialise the encryption operation
+    switch (key_size) 
+    {
+        case 16:
+            if (1 != EVP_EncryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv))
+                handleErrors();
+            break;
+        case 32:
+            if (1 != EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv))
+                handleErrors();
+            break;
+        default:
+            return -1;
+    }
+    // Encrypt the input text
+    if (1 != EVP_EncryptUpdate(ctx, cipher_text, &len, plain_text,
+                plain_text_len))
+        handleErrors();
+    cipher_text_len = len;
+    // Finalise the encryption
+    if (1 != EVP_EncryptFinal_ex(ctx, cipher_text + len, &len))
+        handleErrors();
+    cipher_text_len += len;
+    // Clean Context
+    EVP_CIPHER_CTX_free(ctx);
+    return cipher_text_len;
+}
+
+// Decryption in the NS World using OpenSSL
+int decrypt(unsigned char *cipher_text, int cipher_text_len, unsigned char *key,
+        unsigned char *iv, unsigned char *decrypted_text, int key_size)
+{
+    EVP_CIPHER_CTX *ctx;
+    int len;
+    int decrypted_text_len;
+    // Initialise context
+    if(!(ctx = EVP_CIPHER_CTX_new()))
+        handleErrors();
+    // Initialise cipher suite
+    switch (key_size)
+    {
+        case 16:
+            if(1 != EVP_DecryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv)) 
+                handleErrors();
+            break;
+        case 32:
+            if(1 != EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv)) 
+                handleErrors();
+            break;
+        default:
+            return -1;
+    }
+    // Start decryption
+    if(1 != EVP_DecryptUpdate(ctx, decrypted_text, &len, cipher_text,
+                cipher_text_len)) 
+        handleErrors();
+    decrypted_text_len = len;
+    // Finalise decryption
+    if(1 != EVP_DecryptFinal_ex(ctx, decrypted_text + len, &len))
+        handleErrors();
+    decrypted_text_len += len;
+    EVP_CIPHER_CTX_free(ctx);
+    return decrypted_text_len;
+}
+
+int non_secure_payload_reencryption(mqttz_client *origin, mqttz_client *dest,
+        mqttz_times *times)
+{
+    struct timeval t_ini, t_end;
+    int dec_len, enc_len;
+    char fake_iv[AES_IV_SIZE + 1];
+    memset(fake_iv, '1', AES_IV_SIZE);
+    fake_iv[AES_IV_SIZE] = '\0';
+    char buff_data[MQTTZ_MAX_MSG_SIZE];
+    char buff_data_2[MQTTZ_MAX_MSG_SIZE];
+    switch (times->key_mode)
+    {
+        case KEY_IN_MEM:
+            gettimeofday(&t_ini, NULL);
+            char fake_key[AES_KEY_SIZE + 1];
+            memset(fake_key, '1', AES_KEY_SIZE);
+            fake_key[AES_KEY_SIZE] = '\0';
+            gettimeofday(&t_end, NULL);
+            timersub(&t_end, &t_ini, &times->t_ret_dec_key);
+            gettimeofday(&t_ini, NULL);
+            enc_len = encrypt((unsigned char *) origin->data,
+                    strlen(origin->data), (unsigned char *) fake_key,
+                    (unsigned char *) fake_iv, (unsigned char *) buff_data_2,
+                    AES_KEY_SIZE);
+            //printf("Encrypted text: %s\n", buff_data_2);
+            gettimeofday(&t_end, NULL);
+            timersub(&t_end, &t_ini, &times->t_enc);
+            gettimeofday(&t_ini, NULL);
+            // Load second fake key from memory
+            memset(fake_key, '1', AES_KEY_SIZE);
+            fake_key[AES_KEY_SIZE] = '\0';
+            gettimeofday(&t_end, NULL);
+            timersub(&t_end, &t_ini, &times->t_ret_dec_key);
+            gettimeofday(&t_ini, NULL);
+            dec_len = decrypt((unsigned char *) buff_data_2, enc_len,
+                    (unsigned char *) fake_key, (unsigned char *) fake_iv,
+                    (unsigned char *) buff_data, AES_KEY_SIZE);
+            //printf("Decrypted text: %s\n", buff_data);
+            gettimeofday(&t_end, NULL);
+            timersub(&t_end, &t_ini, &times->t_dec);
+            break;
+        case KEY_IN_SS:
+            break;
+    }
+    return 0;
+}
 
 void prepare_tee_session(struct test_ctx *ctx)
 {
 	TEEC_UUID uuid = TA_HOT_CACHE_UUID;
 	uint32_t origin;
 	TEEC_Result res;
-
 	/* Initialize a context connecting us to the TEE */
 	res = TEEC_InitializeContext(NULL, &ctx->ctx);
 	if (res != TEEC_SUCCESS)
 		errx(1, "TEEC_InitializeContext failed with code 0x%x", res);
-
 	/* Open a session with the TA */
 	res = TEEC_OpenSession(&ctx->ctx, &ctx->sess, &uuid,
 			       TEEC_LOGIN_PUBLIC, NULL, NULL, &origin);
@@ -227,8 +354,6 @@ int free_client(mqttz_client *cli)
 int benchmark(struct test_ctx *ctx, mqttz_client *origin, mqttz_client *dest,
         mqttz_times *times)
 {
-    FILE *fp;
-
     // Launch Tests
     printf("MQT-TZ: Starting Benchmarking!\n");
     int test, world, key;
@@ -240,11 +365,22 @@ int benchmark(struct test_ctx *ctx, mqttz_client *origin, mqttz_client *dest,
             for (key = 0; key < KEY_MODES; key++)
             {
                 times->key_mode = key;
-	            prepare_tee_session(ctx);
-                payload_reencryption(ctx, origin, dest, times);
-	            terminate_tee_session(ctx);
+                switch (world)
+                {
+                    case NW:
+                        if (non_secure_payload_reencryption(origin, dest,
+                                    times) != 0)
+                            return 1;
+                        break;
+                    case SW:
+	                    prepare_tee_session(ctx);
+                        payload_reencryption(ctx, origin, dest, times);
+	                    terminate_tee_session(ctx);
+                        break;
+                    default:
+                        return 1;
+                }
                 int pos = key * NUMBER_TESTS + test;
-                printf("%i %i\n", world, pos);
                 times->ret_dec_key[world][pos] = (times->t_ret_dec_key).tv_sec
                     * 1000.0 + (times->t_ret_dec_key).tv_usec / 1000.0;
                 times->dec_times[world][pos] = (times->t_dec).tv_sec
@@ -257,21 +393,6 @@ int benchmark(struct test_ctx *ctx, mqttz_client *origin, mqttz_client *dest,
         }
     }
     printf("MQT-TZ: Finished benchmarking, printing results!\n");
-
-    // Print Results
-    //fp = fopen("results/ub1_s_mem.dat", "w");
-    //int i = 0;
-//    printf("%f\n", times->ret_dec_key[0][0]);
-//    printf("%f\n", times->ret_dec_key[0][i]);
-//    printf("%f\n", times->ret_dec_key[0][2]);
-//    printf("%f\n", times->ret_dec_key[0][3]);
-//    double *tt = &times->ret_dec_key[0][0];
-//    printf("%f\n", *(tt + 1));
-//    printf("%f\n", *(tt + i));
-//    for (i = 0; i < 4; i++)
-//        printf("%f\n", *(tt + i));
-        //printf("%f\n", times->ret_dec_key[0][i]);
-    //fprintf(fp, "%f %f ",
     printf("Retrieve Decrypt Key, Decrypt, Retrieve Encrypt Key, Encrypt\n");
     printf("NW - MEM\n");
     printf("%f %f\n",
@@ -294,8 +415,6 @@ int benchmark(struct test_ctx *ctx, mqttz_client *origin, mqttz_client *dest,
             NUMBER_TESTS),
             stdev(&(times->enc_times[SW][KEY_IN_MEM * NUMBER_TESTS]),
             NUMBER_TESTS));
-    //fclose(fp);
-    //fp = fopen("results/ub1_ns_mem.dat", "w");
     printf("SW - MEM\n");
     printf("%f %f\n",
             avg(&times->ret_dec_key[SW][KEY_IN_MEM * NUMBER_TESTS],
@@ -317,20 +436,18 @@ int benchmark(struct test_ctx *ctx, mqttz_client *origin, mqttz_client *dest,
             NUMBER_TESTS),
             stdev(&times->enc_times[SW][KEY_IN_MEM * NUMBER_TESTS],
             NUMBER_TESTS));
-    //fclose(fp);
-    //fp = fopen("results/ub1_s_ss.dat", "w");
     printf("NW - S\n");
-    printf("%f %f ",
+    printf("%f %f\n",
             avg(&times->ret_dec_key[NW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS),
             stdev(&times->ret_dec_key[NW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS));
-    printf("%f %f ",
+    printf("%f %f\n",
             avg(&times->dec_times[NW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS),
             stdev(&times->dec_times[NW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS));
-    printf("%f %f ",
+    printf("%f %f\n",
             avg(&times->ret_enc_key[NW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS),
             stdev(&times->ret_enc_key[NW][KEY_IN_SS * NUMBER_TESTS],
@@ -340,20 +457,18 @@ int benchmark(struct test_ctx *ctx, mqttz_client *origin, mqttz_client *dest,
             NUMBER_TESTS),
             stdev(&times->enc_times[NW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS));
-    //fclose(fp);
-    //fp = fopen("results/ub1_ns_ss.dat", "w");
     printf("SW - SS\n");
-    printf("%f %f ",
+    printf("%f %f\n",
             avg(&times->ret_dec_key[SW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS),
             stdev(&times->ret_dec_key[SW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS));
-    printf("%f %f ",
+    printf("%f %f\n",
             avg(&times->dec_times[SW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS),
             stdev(&times->dec_times[SW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS));
-    printf("%f %f ",
+    printf("%f %f\n",
             avg(&times->ret_enc_key[SW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS),
             stdev(&times->ret_enc_key[SW][KEY_IN_SS * NUMBER_TESTS],
@@ -363,7 +478,6 @@ int benchmark(struct test_ctx *ctx, mqttz_client *origin, mqttz_client *dest,
             NUMBER_TESTS),
             stdev(&times->enc_times[SW][KEY_IN_SS * NUMBER_TESTS],
             NUMBER_TESTS));
-    //fclose(fp);
     printf("MQT-TZ: Finished printing results!\n");
 }
 
