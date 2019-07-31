@@ -24,38 +24,25 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef __SECURE_STORAGE_H__
-#define __SECURE_STORAGE_H__
-
-/* UUID of the trusted application */
-#define TA_SECURE_STORAGE_UUID \
-		{ 0xf4e740bb, 0x1437, 0x4fbf, \
-			{ 0x87, 0x85, 0x8d, 0x35, 0x80, 0xc3, 0x49, 0x94 } }
-/*
- * TA_SECURE_STORAGE_CMD_READ_RAW - Create and fill a secure storage file
- * param[0] (memref) ID used the identify the persistent object
- * param[1] (memref) Raw data dumped from the persistent object
- * param[2] unused
- * param[3] unused
- */
-#define TA_SECURE_STORAGE_CMD_READ_RAW		0
 
 /*
- * TA_SECURE_STORAGE_CMD_WRITE_RAW - Create and fill a secure storage file
- * param[0] (memref) ID used the identify the persistent object
- * param[1] (memref) Raw data to be writen in the persistent object
- * param[2] unused
- * param[3] unused
+ * The name of this file must not be modified
  */
-#define TA_SECURE_STORAGE_CMD_WRITE_RAW		1
 
-/*
- * TA_SECURE_STORAGE_CMD_DELETE - Delete a persistent object
- * param[0] (memref) ID used the identify the persistent object
- * param[1] unused
- * param[2] unused
- * param[3] unused
- */
-#define TA_SECURE_STORAGE_CMD_DELETE		2
+#ifndef USER_TA_HEADER_DEFINES_H
+#define USER_TA_HEADER_DEFINES_H
 
-#endif /* __SECURE_STORAGE_H__ */
+#include <read_key_ta.h>
+
+#define TA_UUID				TA_READ_KEY_UUID
+
+#define TA_FLAGS			(TA_FLAG_EXEC_DDR | TA_FLAG_SINGLE_INSTANCE)
+#define TA_STACK_SIZE			(2 * 1024)
+#define TA_DATA_SIZE			(32 * 1024)
+
+#define TA_CURRENT_TA_EXT_PROPERTIES \
+    { "gp.ta.description", USER_TA_PROP_TYPE_STRING, \
+        "Example of TA reading data from its secure storage" }, \
+    { "gp.ta.version", USER_TA_PROP_TYPE_U32, &(const uint32_t){ 0x0010 } }
+
+#endif /*USER_TA_HEADER_DEFINES_H*/

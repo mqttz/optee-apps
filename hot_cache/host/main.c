@@ -517,3 +517,4 @@ int main(int argc, char *argv[])
 
 //./optee_hot_cache 123123123123 1111111111111111 holaholaholahoholahola 123123123123
 //./optee_save_key 123123123123 0 11111111111111111111111111111111
+//./optee_read_key 123123123123

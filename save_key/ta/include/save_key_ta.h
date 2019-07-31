@@ -41,4 +41,6 @@
  */
 #define TA_SECURE_STORAGE_CMD_WRITE_RAW		1
 
+#define TA_SECURE_STORAGE_CMD_READ_RAW		2
+
 #endif /* __SAVE_KEY_H__ */
