@@ -249,7 +249,7 @@ TEEC_Result payload_reencryption(struct test_ctx *ctx, mqttz_client *origin,
                 TEEC_MEMREF_TEMP_INPUT,
                 TEEC_MEMREF_TEMP_INOUT,
                 TEEC_MEMREF_TEMP_INOUT,
-                TEEC_NONE);
+                TEEC_VALUE_INPUT);
     }
     else
     {
@@ -270,7 +270,6 @@ TEEC_Result payload_reencryption(struct test_ctx *ctx, mqttz_client *origin,
     strcat(tmp_ori, origin->iv);
     strcat(tmp_ori, origin->data);
     tmp_ori[ori_size] = '\0'; 
-    //printf("1st: %s\n", tmp_ori);
     size_t dest_size = strlen(dest->cli_id) + AES_IV_SIZE + MQTTZ_MAX_MSG_SIZE;
     char *tmp_dest = malloc(dest_size + 1);
     memset(tmp_dest, '\0', dest_size + 1);
@@ -281,28 +280,18 @@ TEEC_Result payload_reencryption(struct test_ctx *ctx, mqttz_client *origin,
     op.params[1].tmpref.size = dest_size;
     op.params[2].tmpref.buffer = malloc(sizeof(char) * 100);
     op.params[2].tmpref.size = 100;
-    //printf("Destination before sending: %s\n", tmp_dest);
+    op.params[3].value.a = times->key_mode;
     res = TEEC_InvokeCommand(&ctx->sess, TA_REENCRYPT, &op, &ori);
-    printf("%s\n", tmp_dest);
-    //printf("%s\n", (char *) op.params[2].tmpref.buffer);
     const char deli[] = ",";
     char *token;
     token = strtok(op.params[2].tmpref.buffer, deli);
     times->t_ret_dec_key = (struct timeval){0, atoi(token) * 1000};
-    printf("%s\n", token);
     token = strtok(NULL, deli);
     times->t_enc = (struct timeval){0, atoi(token) * 1000};
-    printf("%s\n", token);
     token = strtok(NULL, deli);
     times->t_ret_enc_key = (struct timeval){0, atoi(token) * 1000};
-    printf("%s\n", token);
     token = strtok(NULL, deli);
     times->t_dec = (struct timeval){0, atoi(token) * 1000};
-    printf("%s\n", token);
-    //gettimeofday(&(times->t_ret_dec_key), NULL); 
-    //gettimeofday(&(times->t_dec), NULL); 
-    //gettimeofday(&(times->t_ret_enc_key), NULL); 
-    //gettimeofday(&(times->t_enc), NULL); 
     /*
     switch(res)
     {

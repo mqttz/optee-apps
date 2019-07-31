@@ -240,20 +240,23 @@ static TEE_Result cipher_buffer(void *sess, char *enc_data,
             dec_data, dec_data_size);
 }
 
-static int get_key(char *cli_id, char *cli_key)
+static int get_key(char *cli_id, char *cli_key, int key_mode)
 {
     // TODO Implement Cache Logic
+    char fke_key[TA_AES_KEY_SIZE + 1] = "11111111111111111111111111111111";
     size_t read_bytes;
+    if (key_mode == 0)
+        goto keyinmem;
     if ((read_raw_object(cli_id, strlen(cli_id), cli_key, read_bytes) 
             != TEE_SUCCESS))// || (read_bytes != TA_AES_KEY_SIZE))
     {
-        // If no data, create random key FIXME
-        char fke_key[TA_AES_KEY_SIZE + 1] = "11111111111111111111111111111111";
-        strcpy(cli_key, fke_key);
-        cli_key[TA_AES_KEY_SIZE] = '\0';
-        printf("MQTTZ: Key not found! Created fake key: %s\n", cli_key);
-        return 0;
+        printf("MQTTZ: Key not found! Loading fake key form memory");
+        goto keyinmem;
     }
+    return 0;
+keyinmem:
+    strcpy(cli_key, fke_key);
+    cli_key[TA_AES_KEY_SIZE] = '\0';
     return 0;
 }
 
@@ -267,7 +270,7 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
             TEE_PARAM_TYPE_MEMREF_INPUT,
             TEE_PARAM_TYPE_MEMREF_INOUT,
             TEE_PARAM_TYPE_MEMREF_INOUT,
-            TEE_PARAM_TYPE_NONE);
+            TEE_PARAM_TYPE_VALUE_INPUT);
     if (param_types != exp_param_types)
         return TEE_ERROR_BAD_PARAMETERS;
     printf("MQTTZ: Entered SW\n");
@@ -312,7 +315,7 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     ori_cli_key = (char *) TEE_Malloc(sizeof *ori_cli_key 
             * (TA_AES_KEY_SIZE + 1), 0);
     printf("MQTTZ: Allocated Origin Cli Key\n");
-    if (get_key(ori_cli_id, ori_cli_key) != 0)
+    if (get_key(ori_cli_id, ori_cli_key, params[3].value.a) != 0)
     {
         res = TEE_ERROR_OUT_OF_MEMORY;
         goto exit;
@@ -396,7 +399,7 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     dest_cli_key = (char *) TEE_Malloc(sizeof *dest_cli_key
             * (TA_AES_KEY_SIZE + 1), 0);
     printf("MQTTZ: Allocated Destination Cli Key\n");
-    if (get_key(dest_cli_id, dest_cli_key) != 0)
+    if (get_key(dest_cli_id, dest_cli_key, (int) params[3].value.a) != 0)
     {
         res = TEE_ERROR_OUT_OF_MEMORY;
         goto exit;
