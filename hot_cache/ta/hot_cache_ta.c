@@ -26,6 +26,7 @@
  */
 
 #include <inttypes.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <tee_internal_api.h>
@@ -260,13 +261,12 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
         TEE_Param params[4])
 {
     TEE_Result res;
-    TEE_Time t1, t2, t3, t4, t5;
+    TEE_Time t1, t2;
     TEE_Time t_aux;
-    TEE_GetSystemTime(&t1);
     uint32_t exp_param_types = TEE_PARAM_TYPES(
             TEE_PARAM_TYPE_MEMREF_INPUT,
             TEE_PARAM_TYPE_MEMREF_INOUT,
-            TEE_PARAM_TYPE_NONE,
+            TEE_PARAM_TYPE_MEMREF_INOUT,
             TEE_PARAM_TYPE_NONE);
     if (param_types != exp_param_types)
         return TEE_ERROR_BAD_PARAMETERS;
@@ -276,7 +276,9 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     char *ori_cli_id;
     char *ori_cli_iv;
     char *ori_cli_data;
-    char tmp_buffer[100];
+    char *tmp_buffer;
+    tmp_buffer = (char *) TEE_Malloc(sizeof *tmp_buffer
+            * (TA_MQTTZ_MAX_MSG_SZ + 1), 0);
     size_t data_size = params[0].memref.size - TA_MQTTZ_CLI_ID_SZ 
             - TA_AES_IV_SIZE;
     ori_cli_id = (char *) TEE_Malloc(sizeof *ori_cli_id 
@@ -305,6 +307,7 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     printf("\t- Cli iv: %s\n", ori_cli_iv);
     printf("\t- Cli data: %s\n", ori_cli_data);
     // 2. Read key from secure storage
+    TEE_GetSystemTime(&t1);
     char *ori_cli_key;
     ori_cli_key = (char *) TEE_Malloc(sizeof *ori_cli_key 
             * (TA_AES_KEY_SIZE + 1), 0);
@@ -318,7 +321,8 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     TEE_GetSystemTime(&t2);
     TEE_TIME_SUB(t2, t1, t_aux);
     //sprintf(params[2].memref.buffer, "%s%i", params[2].memref.buffer, t_aux.seconds * 1000 + t_aux.millis);
-    sprintf(tmp_buffer, "%s%i,", params[2].memref.buffer, t_aux.seconds * 1000 + t_aux.millis);
+    snprintf(tmp_buffer, TA_MQTTZ_MAX_MSG_SZ, "%s%i,", tmp_buffer,
+            t_aux.seconds * 1000 + t_aux.millis);
     TEE_GetSystemTime(&t1);
     // 2. Decrypt Inbound Traffic w/ Origin Key
     // FIXME FIXME FIXME
@@ -361,8 +365,8 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     TEE_GetSystemTime(&t2);
     TEE_TIME_SUB(t2, t1, t_aux);
     //sprintf(params[2].memref.buffer, "%s%i", params[2].memref.buffer, t_aux.seconds * 1000 + t_aux.millis);
-    sprintf(tmp_buffer, "%s%i,", params[2].memref.buffer, t_aux.seconds * 1000 + t_aux.millis);
-    TEE_GetSystemTime(&t1);
+    snprintf(tmp_buffer, TA_MQTTZ_MAX_MSG_SZ, "%s%i,", tmp_buffer,
+            t_aux.seconds * 1000 + t_aux.millis);
     // 3. Encrypt outbound traffic with destination key
     // TEE_Free(ori_cli_id);
     // TEE_Free(ori_cli_iv);
@@ -386,7 +390,8 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     printf("MQTTZ: Allocated Destination Cli Data. \n");
     TEE_MemMove(dest_cli_id, (char *) params[1].memref.buffer,
             TA_MQTTZ_CLI_ID_SZ);
-    // Get Destination Client Key from Secure Storage
+    // 4. Get Destination Client Key from Secure Storage
+    TEE_GetSystemTime(&t1);
     char *dest_cli_key;
     dest_cli_key = (char *) TEE_Malloc(sizeof *dest_cli_key
             * (TA_AES_KEY_SIZE + 1), 0);
@@ -400,7 +405,8 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     TEE_GetSystemTime(&t2);
     TEE_TIME_SUB(t2, t1, t_aux);
     //sprintf(params[2].memref.buffer, "%s%i", params[2].memref.buffer, t_aux.seconds * 1000 + t_aux.millis);
-    sprintf(tmp_buffer, "%s%i,", params[2].memref.buffer, t_aux.seconds * 1000 + t_aux.millis);
+    snprintf(tmp_buffer, TA_MQTTZ_MAX_MSG_SZ, "%s%i,", tmp_buffer,
+            t_aux.seconds * 1000 + t_aux.millis);
     TEE_GetSystemTime(&t1);
     // FIXME 
     //if (alloc_resources(session, TA_AES_MODE_ENCODE) != TEE_SUCCESS)
@@ -441,13 +447,15 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     TEE_GetSystemTime(&t2);
     TEE_TIME_SUB(t2, t1, t_aux);
     //sprintf(params[2].memref.buffer, "%s%i", params[2].memref.buffer, t_aux.seconds * 1000 + t_aux.millis);
-    sprintf(tmp_buffer, "%s%i,", params[2].memref.buffer, t_aux.seconds * 1000 + t_aux.millis);
-    printf("MQTTZ: Time: %i\n", t2.seconds * 1000 + t2.millis);
+    snprintf(tmp_buffer, TA_MQTTZ_MAX_MSG_SZ, "%s%i,", tmp_buffer,
+            t_aux.seconds * 1000 + t_aux.millis);
+    printf("MQTTZ: Time: %i\n%s\n", t2.seconds * 1000 + t2.millis, tmp_buffer);
     //printf("MQTTZ: Time elapsed: %i\n", jeje.seconds * 1000 + jeje.millis); 
     // Rebuild the return value
     strcpy((char *) params[1].memref.buffer + TA_MQTTZ_CLI_ID_SZ, dest_cli_iv);
     strcpy((char *) params[1].memref.buffer + TA_MQTTZ_CLI_ID_SZ 
             + TA_AES_IV_SIZE, dest_cli_data);
+    strcpy((char *) params[2].memref.buffer, tmp_buffer);
     res = TEE_SUCCESS;
     //printf("This fails?\n");
     goto exit;
