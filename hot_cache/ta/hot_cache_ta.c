@@ -240,18 +240,47 @@ static TEE_Result cipher_buffer(void *sess, char *enc_data,
             dec_data, dec_data_size);
 }
 
+static int save_key(char *cli_id, char *cli_key)
+{
+    uint32_t obj_data_flag;
+    TEE_Result res;
+    TEE_ObjectHandle object;
+    obj_data_flag = TEE_DATA_FLAG_ACCESS_READ | TEE_DATA_FLAG_ACCESS_WRITE
+        | TEE_DATA_FLAG_ACCESS_WRITE_META | TEE_DATA_FLAG_OVERWRITE;
+    res = TEE_CreatePersistentObject(TEE_STORAGE_PRIVATE, cli_id,
+            strlen(cli_id), obj_data_flag, TEE_HANDLE_NULL, NULL, 0, &object);
+    if (res != TEE_SUCCESS)
+        return 1;
+    res = TEE_WriteObjectData(object, cli_key, strlen(cli_key));
+    if (res != TEE_SUCCESS)
+    {
+        TEE_CloseAndDeletePersistentObject1(object);
+        return 1;
+    }
+    TEE_CloseObject(object);
+    return 0;
+}
+
 static int get_key(char *cli_id, char *cli_key, int key_mode)
 {
     // TODO Implement Cache Logic
     char fke_key[TA_AES_KEY_SIZE + 1] = "11111111111111111111111111111111";
     size_t read_bytes;
+    int res;
     if (key_mode == 0)
         goto keyinmem;
     if ((read_raw_object(cli_id, strlen(cli_id), cli_key, read_bytes) 
             != TEE_SUCCESS))// || (read_bytes != TA_AES_KEY_SIZE))
     {
-        printf("MQTTZ: Key not found! Loading fake key form memory");
-        goto keyinmem;
+        printf("MQTTZ: Key not found! Saving it to persistent storage.\n");
+        res = save_key(cli_id, cli_key);
+        if (res != 0)
+        {
+            printf("MQTTZ: Error saving key to persistent storage.\n");
+            printf(" Using a fake one...\n");
+            goto keyinmem;
+        }
+        printf("MQTTZ: Succesfully stored key in SS!\n");
     }
     return 0;
 keyinmem:

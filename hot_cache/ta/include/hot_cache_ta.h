@@ -29,7 +29,7 @@
 
 /* UUID of the trusted application */
 #define TA_HOT_CACHE_UUID \
-		{ 0xab3e985c, 0xc096, 0x4d22, \
+		{ 0xab3e989c, 0xc096, 0x4d22, \
 			{ 0xb4, 0x60, 0x5d, 0x9c, 0x17, 0xd7, 0x07, 0x13 } }
 
 // AES Related Constants
@@ -118,4 +118,4 @@
 #define TA_AES_CMD_CIPHER		            7
 
 
-#endif /* __SECURE_STORAGE_H__ */
+#endif /* __HOT_CACHE_H__ */
