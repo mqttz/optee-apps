@@ -43,6 +43,7 @@ typedef struct mqttz_client {
 #define KEY_IN_SS                       1
 #define NW                              0
 #define SW                              1
+#define FAKE_KEY_FILE                   "fake_key.key"
 
 // Times are in miliseconds
 typedef struct mqttz_times {
@@ -167,6 +168,7 @@ int non_secure_payload_reencryption(mqttz_client *origin, mqttz_client *dest,
 {
     struct timeval t_ini, t_end;
     int dec_len, enc_len;
+    char fake_key[AES_KEY_SIZE + 1];
     char fake_iv[AES_IV_SIZE + 1];
     memset(fake_iv, '1', AES_IV_SIZE);
     fake_iv[AES_IV_SIZE] = '\0';
@@ -176,7 +178,6 @@ int non_secure_payload_reencryption(mqttz_client *origin, mqttz_client *dest,
     {
         case KEY_IN_MEM:
             gettimeofday(&t_ini, NULL);
-            char fake_key[AES_KEY_SIZE + 1];
             memset(fake_key, '1', AES_KEY_SIZE);
             fake_key[AES_KEY_SIZE] = '\0';
             gettimeofday(&t_end, NULL);
@@ -186,7 +187,6 @@ int non_secure_payload_reencryption(mqttz_client *origin, mqttz_client *dest,
                     strlen(origin->data), (unsigned char *) fake_key,
                     (unsigned char *) fake_iv, (unsigned char *) buff_data_2,
                     AES_KEY_SIZE);
-            //printf("Encrypted text: %s\n", buff_data_2);
             gettimeofday(&t_end, NULL);
             timersub(&t_end, &t_ini, &times->t_enc);
             gettimeofday(&t_ini, NULL);
@@ -194,7 +194,7 @@ int non_secure_payload_reencryption(mqttz_client *origin, mqttz_client *dest,
             memset(fake_key, '1', AES_KEY_SIZE);
             fake_key[AES_KEY_SIZE] = '\0';
             gettimeofday(&t_end, NULL);
-            timersub(&t_end, &t_ini, &times->t_ret_dec_key);
+            timersub(&t_end, &t_ini, &times->t_ret_enc_key);
             gettimeofday(&t_ini, NULL);
             dec_len = decrypt((unsigned char *) buff_data_2, enc_len,
                     (unsigned char *) fake_key, (unsigned char *) fake_iv,
@@ -203,7 +203,50 @@ int non_secure_payload_reencryption(mqttz_client *origin, mqttz_client *dest,
             gettimeofday(&t_end, NULL);
             timersub(&t_end, &t_ini, &times->t_dec);
             break;
-        case KEY_IN_SS:
+        case KEY_IN_SS: ;
+            gettimeofday(&t_ini, NULL);
+            FILE *fp;
+            fp = fopen(FAKE_KEY_FILE, "r");
+            if (fp == NULL)
+            {
+                printf("MQT-TZ: ERROR! Can't open file!\n");
+                return 1;
+            }
+            else
+            {
+                fgets(fake_key, AES_KEY_SIZE + 1, fp);
+                //printf("Read key from file: %s\n", fake_key);
+            }
+            gettimeofday(&t_end, NULL);
+            timersub(&t_end, &t_ini, &times->t_ret_dec_key);
+            gettimeofday(&t_ini, NULL);
+            enc_len = encrypt((unsigned char *) origin->data,
+                    strlen(origin->data), (unsigned char *) fake_key,
+                    (unsigned char *) fake_iv, (unsigned char *) buff_data_2,
+                    AES_KEY_SIZE);
+            gettimeofday(&t_end, NULL);
+            timersub(&t_end, &t_ini, &times->t_enc);
+            gettimeofday(&t_ini, NULL);
+            fp = fopen(FAKE_KEY_FILE, "r");
+            if (fp == NULL)
+            {
+                printf("MQT-TZ: ERROR! Can't open file!\n");
+                return 1;
+            }
+            else
+            {
+                fgets(fake_key, AES_KEY_SIZE + 1, fp);
+                //printf("Read key from file: %s\n", fake_key);
+            }
+            gettimeofday(&t_end, NULL);
+            timersub(&t_end, &t_ini, &times->t_ret_enc_key);
+            gettimeofday(&t_ini, NULL);
+            dec_len = decrypt((unsigned char *) buff_data_2, enc_len,
+                    (unsigned char *) fake_key, (unsigned char *) fake_iv,
+                    (unsigned char *) buff_data, AES_KEY_SIZE);
+            //printf("Decrypted text: %s\n", buff_data);
+            gettimeofday(&t_end, NULL);
+            timersub(&t_end, &t_ini, &times->t_dec);
             break;
     }
     return 0;
@@ -360,6 +403,18 @@ int benchmark(struct test_ctx *ctx, mqttz_client *origin, mqttz_client *dest,
     // Launch Tests
     printf("MQT-TZ: Starting Benchmarking!\n");
     int test, world, key;
+    FILE *fp;
+    fp = fopen(FAKE_KEY_FILE, "w");
+    if (fp == NULL)
+    {
+        printf("MQT-TZ: ERROR! Can't wirte to file!\n");
+        return 1;
+    }
+    char fake_key[AES_KEY_SIZE + 1];
+    memset(fake_key, '1', AES_KEY_SIZE);
+    fake_key[AES_KEY_SIZE] = '\0';
+    fputs(fake_key, fp);
+    fclose(fp);
     for (test = 0; test < NUMBER_TESTS; test++)
     {
         for (world = 0; world < NUMBER_WORLDS; world++)
