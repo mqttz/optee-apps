@@ -193,7 +193,6 @@ static TEE_Result read_raw_object(char *cli_id, size_t cli_id_size, char *data,
 					&object);
 	if (res != TEE_SUCCESS) {
 		EMSG("Failed to open persistent object, res=0x%08x", res);
-		TEE_Free(cli_id);
 		return res;
 	}
 	res = TEE_GetObjectInfo1(object, &object_info);
