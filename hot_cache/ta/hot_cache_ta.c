@@ -230,11 +230,11 @@ static TEE_Result cipher_buffer(void *sess, char *enc_data,
     session = (aes_cipher *) sess;
     if (session->op_handle == TEE_HANDLE_NULL)
         return TEE_ERROR_BAD_STATE;
-    printf("MQTTZ: Starting CipherUpdate with the following parameters:\n");
-    printf("\t- Enc Data: %s\n", enc_data);
-    printf("\t- Enc Data Size: %li\n", enc_data_size);
-    printf("\t- Dec Data: %s\n", dec_data);
-    printf("\t- Dec Data Size: %li\n", *dec_data_size);
+    printf("MQTTZ: Starting CipherUpdate \n");
+    //printf("\t- Enc Data: %s\n", enc_data);
+    //printf("\t- Enc Data Size: %li\n", enc_data_size);
+    //printf("\t- Dec Data: %s\n", dec_data);
+    //printf("\t- Dec Data Size: %li\n", *dec_data_size);
     return TEE_CipherUpdate(session->op_handle, enc_data, enc_data_size,
             dec_data, dec_data_size);
 }
@@ -309,7 +309,7 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     char *ori_cli_data;
     char *tmp_buffer;
     tmp_buffer = (char *) TEE_Malloc(sizeof *tmp_buffer
-            * (TA_MQTTZ_MAX_MSG_SZ + 1), 0);
+            * (100 + 1), 0);
     size_t data_size = params[0].memref.size - TA_MQTTZ_CLI_ID_SZ 
             - TA_AES_IV_SIZE;
     ori_cli_id = (char *) TEE_Malloc(sizeof *ori_cli_id 
@@ -334,9 +334,9 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
             + TA_MQTTZ_CLI_ID_SZ + TA_AES_IV_SIZE, data_size);
     ori_cli_data[data_size] = '\0';
     printf("MQTTZ: Loaded Values\n");
-    printf("\t- Cli id: %s\n", ori_cli_id);
-    printf("\t- Cli iv: %s\n", ori_cli_iv);
-    printf("\t- Cli data: %s\n", ori_cli_data);
+    //printf("\t- Cli id: %s\n", ori_cli_id);
+    //printf("\t- Cli iv: %s\n", ori_cli_iv);
+    //printf("\t- Cli data: %s\n", ori_cli_data);
     // 2. Read key from secure storage
     TEE_GetSystemTime(&t1);
     char *ori_cli_key;
@@ -352,7 +352,7 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     TEE_GetSystemTime(&t2);
     TEE_TIME_SUB(t2, t1, t_aux);
     //sprintf(params[2].memref.buffer, "%s%i", params[2].memref.buffer, t_aux.seconds * 1000 + t_aux.millis);
-    snprintf(tmp_buffer, TA_MQTTZ_MAX_MSG_SZ, "%s%i,", tmp_buffer,
+    snprintf(tmp_buffer, 100, "%s%i,", tmp_buffer,
             t_aux.seconds * 1000 + t_aux.millis);
     TEE_GetSystemTime(&t1);
     // 2. Decrypt Inbound Traffic w/ Origin Key
@@ -392,11 +392,11 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
         goto exit;
     }
     printf("MQTTZ: Finished decrypting, now we encrypt with the other key!\n");
-    printf("MQTTZ: Decrypted data: %s\n", dec_data);
+    //printf("MQTTZ: Decrypted data: %s\n", dec_data);
     TEE_GetSystemTime(&t2);
     TEE_TIME_SUB(t2, t1, t_aux);
     //sprintf(params[2].memref.buffer, "%s%i", params[2].memref.buffer, t_aux.seconds * 1000 + t_aux.millis);
-    snprintf(tmp_buffer, TA_MQTTZ_MAX_MSG_SZ, "%s%i,", tmp_buffer,
+    snprintf(tmp_buffer, 100, "%s%i,", tmp_buffer,
             t_aux.seconds * 1000 + t_aux.millis);
     // 3. Encrypt outbound traffic with destination key
     // TEE_Free(ori_cli_id);
@@ -436,7 +436,7 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     TEE_GetSystemTime(&t2);
     TEE_TIME_SUB(t2, t1, t_aux);
     //sprintf(params[2].memref.buffer, "%s%i", params[2].memref.buffer, t_aux.seconds * 1000 + t_aux.millis);
-    snprintf(tmp_buffer, TA_MQTTZ_MAX_MSG_SZ, "%s%i,", tmp_buffer,
+    snprintf(tmp_buffer, 100, "%s%i,", tmp_buffer,
             t_aux.seconds * 1000 + t_aux.millis);
     TEE_GetSystemTime(&t1);
     // FIXME 
@@ -473,12 +473,12 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
         goto exit;
     }
     printf("MQTTZ: Finished encrypting!\n");
-    printf("MQTTZ: Encrypted Data: %s\n", dest_cli_data);
+    //printf("MQTTZ: Encrypted Data: %s\n", dest_cli_data);
     printf("MQTTZ: This is the final IV: %s\n", dest_cli_iv);
     TEE_GetSystemTime(&t2);
     TEE_TIME_SUB(t2, t1, t_aux);
     //sprintf(params[2].memref.buffer, "%s%i", params[2].memref.buffer, t_aux.seconds * 1000 + t_aux.millis);
-    snprintf(tmp_buffer, TA_MQTTZ_MAX_MSG_SZ, "%s%i,", tmp_buffer,
+    snprintf(tmp_buffer, 100, "%s%i,", tmp_buffer,
             t_aux.seconds * 1000 + t_aux.millis);
     printf("MQTTZ: Time: %i\n%s\n", t2.seconds * 1000 + t2.millis, tmp_buffer);
     //printf("MQTTZ: Time elapsed: %i\n", jeje.seconds * 1000 + jeje.millis); 
