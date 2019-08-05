@@ -370,9 +370,13 @@ int parse_arguments(int argc, char *argv[], mqttz_client *origin,
         memset(origin->iv, '\0', (strlen(argv[2]) + 1));
         strcpy(origin->iv, argv[2]);
         // Origin Client Data
-        origin->data = malloc(sizeof *(origin->data) * (strlen(argv[3]) + 1));
-        memset(origin->data, '\0', (strlen(argv[3]) + 1));
-        strcpy(origin->data, argv[3]);
+        // FIXME FIXME FIXME
+        // origin->data = malloc(sizeof *(origin->data) * (strlen(argv[3]) + 1));
+        // memset(origin->data, '\0', (strlen(argv[3]) + 1));
+        // strcpy(origin->data, argv[3]);
+        origin->data = malloc(sizeof *(origin->data) * (4000 + 1));
+        memset(origin->data, 'h', 4000 + 1);
+        origin->data[4000] = '\0';
         // Destination Client ID
         dest->cli_id = malloc(sizeof *(dest->cli_id) * (strlen(argv[4]) + 1));
         memset(dest->cli_id, '\0', (strlen(argv[4]) + 1));
