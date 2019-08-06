@@ -264,15 +264,20 @@ static int get_key(char *cli_id, char *cli_key, int key_mode)
 {
     // TODO Implement Cache Logic
     char fke_key[TA_AES_KEY_SIZE + 1] = "11111111111111111111111111111111";
+    char my_id[TA_MQTTZ_CLI_ID_SZ + 1];
+    strncpy(my_id, cli_id, TA_MQTTZ_CLI_ID_SZ);
+    my_id[TA_MQTTZ_CLI_ID_SZ] = '\0';
+    printf("My ID: %s\n", my_id);
     size_t read_bytes;
     int res;
     if (key_mode == 0)
         goto keyinmem;
-    if ((read_raw_object(cli_id, strlen(cli_id), cli_key, read_bytes) 
+    //if ((read_raw_object(cli_id, strlen(cli_id), cli_key, read_bytes) 
+    if ((read_raw_object(my_id, TA_MQTTZ_CLI_ID_SZ, cli_key, read_bytes) 
             != TEE_SUCCESS))// || (read_bytes != TA_AES_KEY_SIZE))
     {
         printf("MQTTZ: Key not found! Saving it to persistent storage.\n");
-        res = save_key(cli_id, cli_key);
+        res = save_key(my_id, cli_key);
         if (res != 0)
         {
             printf("MQTTZ: Error saving key to persistent storage.\n");
@@ -304,35 +309,36 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     printf("MQTTZ: Entered SW\n");
     // TODO
     // 1. Decrypt from Origin
-    char *ori_cli_id;
+    // char *ori_cli_id;
     char *ori_cli_iv;
-    char *ori_cli_data;
+    //char *ori_cli_data;
     char *tmp_buffer;
     tmp_buffer = (char *) TEE_Malloc(sizeof *tmp_buffer
             * (100 + 1), 0);
     size_t data_size = params[0].memref.size - TA_MQTTZ_CLI_ID_SZ 
             - TA_AES_IV_SIZE;
-    ori_cli_id = (char *) TEE_Malloc(sizeof *ori_cli_id 
-            * (TA_MQTTZ_CLI_ID_SZ + 1), 0);
+    // ori_cli_id = (char *) TEE_Malloc(sizeof *ori_cli_id 
+    //        * (TA_MQTTZ_CLI_ID_SZ + 1), 0);
     ori_cli_iv = (char *) TEE_Malloc(sizeof *ori_cli_iv 
             * (TA_AES_IV_SIZE + 1), 0);
-    ori_cli_data = (char *) TEE_Malloc(sizeof *ori_cli_data 
-            * (TA_MQTTZ_MAX_MSG_SZ + 1), 0);
-    if (!(ori_cli_id && ori_cli_iv && ori_cli_data))
+    //ori_cli_data = (char *) TEE_Malloc(sizeof *ori_cli_data 
+    //        * (TA_MQTTZ_MAX_MSG_SZ + 1), 0);
+    //if (!(ori_cli_id && ori_cli_iv && ori_cli_data))
+    if (!(ori_cli_iv))
     {
         res = TEE_ERROR_OUT_OF_MEMORY;
         goto exit;
     }
     printf("MQTTZ: Allocated input args\n");
-    TEE_MemMove(ori_cli_id, (char *) params[0].memref.buffer,
-            TA_MQTTZ_CLI_ID_SZ);
-    ori_cli_id[TA_MQTTZ_CLI_ID_SZ] = '\0';
+    //TEE_MemMove(ori_cli_id, (char *) params[0].memref.buffer,
+    //        TA_MQTTZ_CLI_ID_SZ);
+    //ori_cli_id[TA_MQTTZ_CLI_ID_SZ] = '\0';
     TEE_MemMove(ori_cli_iv, (char *) params[0].memref.buffer
             + TA_MQTTZ_CLI_ID_SZ, TA_AES_IV_SIZE);
     ori_cli_iv[TA_AES_IV_SIZE] = '\0';
-    TEE_MemMove(ori_cli_data, (char *) params[0].memref.buffer 
-            + TA_MQTTZ_CLI_ID_SZ + TA_AES_IV_SIZE, data_size);
-    ori_cli_data[data_size] = '\0';
+    //TEE_MemMove(ori_cli_data, (char *) params[0].memref.buffer 
+    //        + TA_MQTTZ_CLI_ID_SZ + TA_AES_IV_SIZE, data_size);
+    //ori_cli_data[data_size] = '\0';
     printf("MQTTZ: Loaded Values\n");
     //printf("\t- Cli id: %s\n", ori_cli_id);
     //printf("\t- Cli iv: %s\n", ori_cli_iv);
@@ -343,7 +349,9 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     ori_cli_key = (char *) TEE_Malloc(sizeof *ori_cli_key 
             * (TA_AES_KEY_SIZE + 1), 0);
     printf("MQTTZ: Allocated Origin Cli Key\n");
-    if (get_key(ori_cli_id, ori_cli_key, params[3].value.a) != 0)
+    //if (get_key(ori_cli_id, ori_cli_key, params[3].value.a) != 0)
+    if (get_key((char *) params[0].memref.buffer, ori_cli_key,
+                params[3].value.a) != 0)
     {
         res = TEE_ERROR_OUT_OF_MEMORY;
         goto exit;
@@ -385,8 +393,11 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
         goto exit;
     }
     printf("MQTTZ: Allocated decrypted data!\n");
-    if (cipher_buffer(session, ori_cli_data, data_size, dec_data, 
-            &dec_data_size) != TEE_SUCCESS)
+    // FIXME This is gonna fail, most likely
+//    if (cipher_buffer(session, ori_cli_data, data_size, dec_data, 
+    if (cipher_buffer(session,
+        (char *) params[0].memref.buffer + TA_MQTTZ_CLI_ID_SZ + TA_AES_IV_SIZE,
+        data_size, dec_data, &dec_data_size) != TEE_SUCCESS)
     {
         res = TEE_ERROR_GENERIC;
         goto exit;
@@ -399,10 +410,10 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     snprintf(tmp_buffer, 100, "%s%i,", tmp_buffer,
             t_aux.seconds * 1000 + t_aux.millis);
     // 3. Encrypt outbound traffic with destination key
-    // TEE_Free(ori_cli_id);
-    // TEE_Free(ori_cli_iv);
-    // TEE_Free(ori_cli_data);
-    // TEE_Free(ori_cli_key);
+    //TEE_Free((void *) ori_cli_id);
+    TEE_Free((void *) ori_cli_iv);
+    //TEE_Free((void *) ori_cli_data);
+    TEE_Free((void *) ori_cli_key);
     printf("MQTTZ: Freed previous resources we don't need anymore.\n");
     char *dest_cli_id;
     char *dest_cli_iv;
@@ -489,17 +500,13 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     strcpy((char *) params[2].memref.buffer, tmp_buffer);
     res = TEE_SUCCESS;
     //printf("This fails?\n");
+    TEE_Free((void *) dest_cli_id);
+    TEE_Free((void *) dest_cli_iv);
+    TEE_Free((void *) dest_cli_data);
+    TEE_Free((void *) dest_cli_key);
+    TEE_Free((void *) dec_data);
     goto exit;
 exit:
-//    TEE_Free((void *)ori_cli_id);
-//    TEE_Free((void *)ori_cli_iv);
-//    TEE_Free((void *)ori_cli_data);
-//    TEE_Free((void *)ori_cli_key);
-//    TEE_Free((void *)dest_cli_id);
-//    TEE_Free((void *)dest_cli_iv);
-//    TEE_Free((void *)dest_cli_data);
-//    TEE_Free((void *)dest_cli_key);
-//    TEE_Free((void *)dec_data);
     return res;
 }
 
