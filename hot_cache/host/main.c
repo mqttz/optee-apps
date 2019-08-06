@@ -36,7 +36,7 @@ typedef struct mqttz_client {
 #define AES_IV_SIZE                     16
 #define AES_KEY_SIZE                    32
 // Benchmark Parameters
-#define NUMBER_TESTS                    10 //100
+#define NUMBER_TESTS                    20 //100
 #define NUMBER_WORLDS                   2
 #define KEY_MODES                       2
 #define KEY_IN_MEM                      0
