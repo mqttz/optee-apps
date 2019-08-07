@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
+#include <openssl/ssl.h>
 
 /* OP-TEE TEE client API (built by optee_client) */
 #include <tee_client_api.h>
@@ -46,6 +47,9 @@ int main(void)
 	uint32_t err_origin;
     struct timeval t1, t2;
     double elapsedTime;
+    SSL_library_init();
+    printf("Using OpenSSL version \"%s\"\n",
+           SSLeay_version (SSLEAY_VERSION));
 
 	/* Initialize a context connecting us to the TEE */
 	res = TEEC_InitializeContext(NULL, &ctx);
