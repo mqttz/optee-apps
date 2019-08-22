@@ -32,7 +32,7 @@ typedef struct mqttz_client {
     char *data;
 } mqttz_client;
 
-#define MQTTZ_MAX_MSG_SIZE              20096
+#define MQTTZ_MAX_MSG_SIZE              4096
 #define AES_IV_SIZE                     16
 #define AES_KEY_SIZE                    32
 // Benchmark Parameters
@@ -336,6 +336,7 @@ TEEC_Result payload_reencryption(struct test_ctx *ctx, mqttz_client *origin,
     times->t_ret_enc_key = (struct timeval){0, atoi(token) * 1000};
     token = strtok(NULL, deli);
     times->t_dec = (struct timeval){0, atoi(token) * 1000};
+    printf("Results: %s\n", tmp_dest);
     /*
     switch(res)
     {
@@ -353,12 +354,34 @@ TEEC_Result payload_reencryption(struct test_ctx *ctx, mqttz_client *origin,
 int parse_arguments(int argc, char *argv[], mqttz_client *origin,
         mqttz_client *dest)
 {
-    if (argc != 5)
+    if (argc == 3)
     {
-        printf("MQTTZ Usage ERROR! Not right amount of parameters supplied.\n");
-        return 1;
+        // FIXME This is only a workaround for MW article!!
+        // Origin Client ID
+        origin->cli_id = malloc(sizeof *(origin->cli_id) 
+                * (strlen(argv[1]) + 1));
+        memset(origin->cli_id, '\0', (strlen(argv[1]) +1));
+        strcpy(origin->cli_id, argv[1]);
+        // Fake origin IV
+        origin->iv = malloc(sizeof *(origin->iv) * (AES_IV_SIZE + 1));
+        memset(origin->iv, '1', AES_IV_SIZE);
+        origin->iv[AES_IV_SIZE] = '\0';
+        // Fake origin data
+        origin->data = malloc(sizeof *(origin->data) * (4000 + 1));
+        memset(origin->data, 'h', 4000 + 1);
+        origin->data[4000] = '\0';
+        // Destination Client ID
+        dest->cli_id = malloc(sizeof *(dest->cli_id) * (strlen(argv[2]) + 1));
+        memset(dest->cli_id, '\0', (strlen(argv[2]) + 1));
+        strcpy(dest->cli_id, argv[2]);
+        // Destination Client IV
+        dest->iv = malloc(sizeof *(dest->iv) * (AES_IV_SIZE + 1));
+        memset(dest->iv, '\0', (AES_IV_SIZE + 1));
+        // Origin Client Data
+        dest->data = malloc(sizeof *(dest->data) * MQTTZ_MAX_MSG_SIZE);
+        memset(dest->data, '\0', MQTTZ_MAX_MSG_SIZE);
     }
-    else
+    else if (argc == 5)
     {
         // Origin Client ID
         origin->cli_id = malloc(sizeof *(origin->cli_id) 
@@ -390,6 +413,12 @@ int parse_arguments(int argc, char *argv[], mqttz_client *origin,
         memset(dest->data, '\0', MQTTZ_MAX_MSG_SIZE);
         // strcpy(dest->data, argv[6]);
     }
+    else
+    {
+        printf("MQTTZ Usage ERROR! Not right amount of parameters supplied.\n");
+        return 1;
+    }
+
     return 0;
 }
 
@@ -553,7 +582,7 @@ int main(int argc, char *argv[])
     dest = malloc(sizeof *dest);
     mqttz_times *times;
     times = malloc(sizeof *times);
-    times->benchmark = 1;
+    times->benchmark = 0;
 
     // Dummy TEE Context to check if all files are OK
 	//prepare_tee_session(&ctx);
