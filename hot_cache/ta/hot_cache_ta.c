@@ -569,6 +569,7 @@ TEE_Result TA_InvokeCommandEntryPoint(void __unused *session,
 {
 	switch (command) {
         case TA_REENCRYPT:
+            printf("Aloha?\n");
             return payload_reencryption(session, param_types, params);
 	default:
 		EMSG("Command ID 0x%x is not supported", command);

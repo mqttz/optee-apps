@@ -286,22 +286,23 @@ TEEC_Result payload_reencryption(struct test_ctx *ctx, mqttz_client *origin,
     TEEC_Result res;
 
     memset(&op, 0, sizeof op);
-    if (times->benchmark)
-    {
-        op.paramTypes = TEEC_PARAM_TYPES(
-                TEEC_MEMREF_TEMP_INPUT,
-                TEEC_MEMREF_TEMP_INOUT,
-                TEEC_MEMREF_TEMP_INOUT,
-                TEEC_VALUE_INPUT);
-    }
-    else
-    {
+    //if (times->benchmark)
+    //{
+    op.paramTypes = TEEC_PARAM_TYPES(
+            TEEC_MEMREF_TEMP_INPUT,
+            TEEC_MEMREF_TEMP_INOUT,
+            TEEC_MEMREF_TEMP_INOUT,
+            TEEC_VALUE_INPUT);
+    //}
+    //else
+    //{
+        /*
         op.paramTypes = TEEC_PARAM_TYPES(
                 TEEC_MEMREF_TEMP_INPUT,
                 TEEC_MEMREF_TEMP_INOUT,
                 TEEC_NONE,
                 TEEC_NONE);
-    }
+    }*/
     
     // We need to deconstruct the struct the internal structure is lost
     // in the REE -> TEE communication.
@@ -324,6 +325,9 @@ TEEC_Result payload_reencryption(struct test_ctx *ctx, mqttz_client *origin,
     op.params[2].tmpref.buffer = malloc(sizeof(char) * 100);
     op.params[2].tmpref.size = 100;
     op.params[3].value.a = times->key_mode;
+    printf("Invokation with this params: \n%s\n%s\n%s\n%i\n",
+            op.params[0].tmpref.buffer, op.params[1].tmpref.buffer,
+            op.params[2].tmpref.buffer, op.params[3].value.a);
     res = TEEC_InvokeCommand(&ctx->sess, TA_REENCRYPT, &op, &ori);
     // Results are stored in tmp_dest
     const char deli[] = ",";
@@ -397,9 +401,9 @@ int parse_arguments(int argc, char *argv[], mqttz_client *origin,
         // origin->data = malloc(sizeof *(origin->data) * (strlen(argv[3]) + 1));
         // memset(origin->data, '\0', (strlen(argv[3]) + 1));
         // strcpy(origin->data, argv[3]);
-        origin->data = malloc(sizeof *(origin->data) * (20000 + 1));
-        memset(origin->data, 'h', 20000 + 1);
-        origin->data[20000] = '\0';
+        origin->data = malloc(sizeof *(origin->data) * (4000 + 1));
+        memset(origin->data, 'h', 4000 + 1);
+        origin->data[4000] = '\0';
         // Destination Client ID
         dest->cli_id = malloc(sizeof *(dest->cli_id) * (strlen(argv[4]) + 1));
         memset(dest->cli_id, '\0', (strlen(argv[4]) + 1));
@@ -595,7 +599,12 @@ int main(int argc, char *argv[])
 	    //terminate_tee_session(&ctx);
     }
     else
+    {
+	    prepare_tee_session(&ctx);
+        times->key_mode = KEY_IN_SS;
         payload_reencryption(&ctx, origin, dest, times);
+	    terminate_tee_session(&ctx);
+    }
 
     // Terminate Dummy TEE Context
 	//terminate_tee_session(&ctx);
@@ -605,5 +614,6 @@ int main(int argc, char *argv[])
 }
 
 //./optee_hot_cache 123123123123 1111111111111111 holaholaholahoholahola 123123123123
+//./optee_hot_cache 123123123123 111111111111
 //./optee_save_key 123123123123 0 11111111111111111111111111111111
 //./optee_read_key 123123123123
