@@ -102,7 +102,22 @@ int main(void)
     elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000.0;
     elapsedTime += (t2.tv_usec - t1.tv_usec) / 1000.0;
     printf("CSG-CSEM: Elapsed time: %f ms\n", elapsedTime);
-
+    printf("Running popen!\n");
+    FILE *fp;
+    //size_t PATH_MAX = 100;
+    char path[100];
+    fp = popen("ls *", "r");
+    if (fp == NULL)
+        printf("Popen failed!\n");
+    while (fgets(path, 100, fp) != NULL)
+        printf("%s", path);
+    pclose(fp);
+    fp = popen("/usr/bin/optee_example_aes", "r");
+    if (fp == NULL)
+        printf("Popen failed!\n");
+    while (fgets(path, 100, fp) != NULL)
+        printf("%s", path);
+    pclose(fp);
 	/*
 	 * We're done with the TA, close the session and
 	 * destroy the context.
@@ -110,10 +125,7 @@ int main(void)
 	 * The TA will print "Goodbye!" in the log when the
 	 * session is closed.
 	 */
-
 	TEEC_CloseSession(&sess);
-
 	TEEC_FinalizeContext(&ctx);
-
 	return 0;
 }

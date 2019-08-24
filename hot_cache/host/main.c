@@ -579,6 +579,7 @@ int benchmark(struct test_ctx *ctx, mqttz_client *origin, mqttz_client *dest,
 
 int main(int argc, char *argv[])
 {
+    printf("Starting!!\n");
 	struct test_ctx ctx;
     mqttz_client *origin;
     origin = malloc(sizeof *origin);
