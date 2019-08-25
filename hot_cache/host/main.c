@@ -325,9 +325,11 @@ TEEC_Result payload_reencryption(struct test_ctx *ctx, mqttz_client *origin,
     op.params[2].tmpref.buffer = malloc(sizeof(char) * 100);
     op.params[2].tmpref.size = 100;
     op.params[3].value.a = times->key_mode;
+    /*
     printf("Invokation with this params: \n%s\n%s\n%s\n%i\n",
             op.params[0].tmpref.buffer, op.params[1].tmpref.buffer,
             op.params[2].tmpref.buffer, op.params[3].value.a);
+    */
     res = TEEC_InvokeCommand(&ctx->sess, TA_REENCRYPT, &op, &ori);
     // Results are stored in tmp_dest
     const char deli[] = ",";
