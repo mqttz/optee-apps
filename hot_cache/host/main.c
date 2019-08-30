@@ -590,6 +590,7 @@ int main(int argc, char *argv[])
     mqttz_times *times;
     times = malloc(sizeof *times);
     times->benchmark = 0;
+    times->world = SW;
 
     // Dummy TEE Context to check if all files are OK
 	//prepare_tee_session(&ctx);
@@ -603,10 +604,18 @@ int main(int argc, char *argv[])
     }
     else
     {
-	    prepare_tee_session(&ctx);
-        times->key_mode = KEY_IN_SS;
-        payload_reencryption(&ctx, origin, dest, times);
-	    terminate_tee_session(&ctx);
+        if (times->world == NW)
+        {
+            non_secure_payload_reencryption(origin, dest, times);
+        }
+        else
+        {
+            prepare_tee_session(&ctx);
+            //times->key_mode = KEY_IN_SS;
+            times->key_mode = KEY_IN_SS;
+            payload_reencryption(&ctx, origin, dest, times);
+            terminate_tee_session(&ctx);
+        }
     }
 
     // Terminate Dummy TEE Context
