@@ -37,7 +37,8 @@ int init_queue(Queue *queue)
 
 int free_queue(Queue *queue)
 {
-    // TODO
+    free(queue->first);
+    free(queue->last);
     return 0;
 }
 
@@ -151,6 +152,8 @@ int main()
     print_queue_status(q);
     queue_pop(q);
     print_queue_status(q);
+    free_queue(q);
+    free(q);
 //    mqttz_cache *cache;
 //    if (init_cache(cache) != 0)
 //        printf("MQT-TZ ERROR: Could not initialize cache queue!");
