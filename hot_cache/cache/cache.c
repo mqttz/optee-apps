@@ -109,26 +109,38 @@ int queue_push(Queue *queue, Node *node)
     return 0;
 }
 
-/*
-int cache_query(mqttz_cache *cache, char *oid, char *o)
+int queue_to_front(Queue *queue, Node *node)
 {
-    int i;
-    for (i = 0; i < CACHE_SIZE; ++i)
+    if (queue->first == node)
+        return 0;
+    if (queue->last == node)
+        queue->last == node->prev;
+    node->prev->next = node->next;
+    node->next->prev = node->prev;
+    node->prev = NULL;
+    node->next = queue->first;
+    queue->first->prev = node;
+    queue->first = node;
+}
+
+Node* cache_query(Hash *hash, Queue *queue, const char *obj_id)
+{
+    int page = atoi(obj_id) % hash->capacity;
+    Node *reqPage = hash->array[page];
+    if (reqPage == NULL)
     {
-        if (strncmp(cache->obj_id + OBJ_ID_SIZE * i, oid, OBJ_ID_SIZE) == 0)
-        {
-            // Cache hit!
-            printf("MQT-TZ: Cache hit!\n");
-            strncpy(o, cache->obj + OBJ_SIZE * i, OBJ_SIZE);
-            return 0;
-        }
+        // Cache Miss
+        // Load from Secure Storage
+        // We do this instead for testing!
+        reqPage = init_node(obj_id);
+        queue_push(queue, reqPage);
+        return reqPage;
     }
-    // Cache Miss
-    printf("MQT-TZ: Cache Miss!\n");
-    // Read from Secure Storage
-    // Load to Cache
-    return 0;
-}*/
+    // TODO Implement
+    queue_to_front(queue, reqPage);
+    return reqPage;
+}
+
 
 void print_queue_status(Queue *queue)
 {
