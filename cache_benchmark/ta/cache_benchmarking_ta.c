@@ -41,7 +41,7 @@
 #define TA_MQTTZ_CLI_ID_SZ      12
 #define TOTAL_ELEMENTS          128 
 // To change every experiment
-#define CACHE_SIZE              64 // 12 64 128
+#define CACHE_SIZE              12 // 12 64 128
 
 typedef struct Node {
     char *id;
@@ -130,7 +130,7 @@ static int get_key(char *cli_id, char *cli_key)
         printf("Key not found in storage!\n");
         return 0;
     }
-    printf("Key read from storage!\n");
+    //printf("Key read from storage!\n");
     return 0;
 }
 
@@ -391,6 +391,7 @@ static TEE_Result cache_benchmarking(void *session, uint32_t param_types,
     {
         random_query_cache(hash, queue, TOTAL_ELEMENTS, times);
         avg_times[i] = avg(times, TOTAL_ELEMENTS);
+        printf("Finished experiment %i!\n", i);
     }
     print_cache_status(hash);
     for (i = 0; i < NUM_TESTS; i++)
