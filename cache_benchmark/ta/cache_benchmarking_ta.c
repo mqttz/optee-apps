@@ -338,7 +338,7 @@ int avg(int *arr, int num_elements)
     {
         ret += *(arr + i);
     }
-    return ret / num_elements; 
+    return ret; 
 }
 
 static int random_query_cache(Hash *hash, Queue *queue, int table_size,
