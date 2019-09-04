@@ -1,4 +1,4 @@
-project (optee_cache_benchmark C)
+project (optee_cache_benchmarking C)
 
 set (SRC host/main.c)
 

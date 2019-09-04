@@ -18,7 +18,7 @@
 #include <tee_client_api.h>
 
 /* TA API: UUID and command IDs */
-#include <cache_benchmark_ta.h>
+#include <cache_benchmarking_ta.h>
 
 /* TEE resources */
 struct test_ctx {

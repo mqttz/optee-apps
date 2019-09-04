@@ -12,7 +12,7 @@ CFLAGS += -Wall -I../ta/include -I./include
 CFLAGS += -I$(TEEC_EXPORT)/include
 LDADD += -lteec -L$(TEEC_EXPORT)/lib -lm -lssl -lcrypto
 
-BINARY = optee_cache_benchmark
+BINARY = optee_cache_benchmarking
 
 .PHONY: all
 all: $(BINARY)
