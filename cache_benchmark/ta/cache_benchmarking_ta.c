@@ -330,6 +330,28 @@ static int fill_ss_and_cache(Hash *hash, Queue *queue, int table_size,
     return 0;
 }
 
+static int random_query_cache(Hash *hash, Queue *queue, int table_size)
+{
+    unsigned int i;
+    //srand(1337);
+    for (i = 0; i < table_size; i++)
+    {
+        int rand_num = rand() % table_size;
+        char rand_id[TA_MQTTZ_CLI_ID_SZ + 1];
+        if (rand_num >= 1000)
+            snprintf(rand_id, TA_MQTTZ_CLI_ID_SZ + 1, "00000000%i", rand_num);
+        else if (rand_num < 1000 && rand_num >= 100)
+            snprintf(rand_id, TA_MQTTZ_CLI_ID_SZ + 1, "000000000%i", rand_num);
+        else if (rand_num < 100 && rand_num >= 10)
+            snprintf(rand_id, TA_MQTTZ_CLI_ID_SZ + 1, "0000000000%i",
+                    rand_num);
+        else
+            snprintf(rand_id, TA_MQTTZ_CLI_ID_SZ + 1, "00000000000%i",
+                    rand_num);
+        printf("Random ID: %s\n", rand_id);
+    }
+}
+
 static TEE_Result cache_benchmarking(void *session, uint32_t param_types,
         TEE_Param params[4])
 {
@@ -348,6 +370,7 @@ static TEE_Result cache_benchmarking(void *session, uint32_t param_types,
     printf("Initialized Queue and Hash Table!\n");
     fill_ss_and_cache(hash, queue, TOTAL_ELEMENTS, CACHE_SIZE);
     print_cache_status(hash);
+    random_query_cache(hash, queue, TOTAL_ELEMENTS);
     free_queue(queue);
     free_hash(hash);
     res = TEE_SUCCESS;
