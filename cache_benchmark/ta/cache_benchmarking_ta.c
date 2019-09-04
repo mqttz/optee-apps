@@ -39,9 +39,9 @@
 #define NUM_TESTS               2 //100
 #define TA_AES_KEY_SIZE         32
 #define TA_MQTTZ_CLI_ID_SZ      12
-#define TOTAL_ELEMENTS          1024
+#define TOTAL_ELEMENTS          64 // 12 64 128
 // To change every experiment
-#define CACHE_SIZE              1024
+#define CACHE_SIZE              128
 
 typedef struct Node {
     char *id;
@@ -73,6 +73,65 @@ static Node* init_node(char *id, char *data)
     tmp->data[TA_AES_KEY_SIZE] = '\0';
     tmp->prev = tmp->next = NULL;
     return tmp;
+}
+
+static TEE_Result read_raw_object(char *cli_id, size_t cli_id_size, char *data,
+        size_t data_sz)
+{
+	TEE_ObjectHandle object;
+	TEE_ObjectInfo object_info;
+	TEE_Result res;
+	uint32_t read_bytes;
+    // Check if object is in memory
+	res = TEE_OpenPersistentObject(TEE_STORAGE_PRIVATE,
+					cli_id, cli_id_size,
+					TEE_DATA_FLAG_ACCESS_READ |
+					TEE_DATA_FLAG_SHARE_READ,
+					&object);
+	if (res != TEE_SUCCESS) {
+		printf("Failed to open persistent object, res=0x%08x", res);
+		return res;
+	}
+	res = TEE_GetObjectInfo1(object, &object_info);
+	if (res != TEE_SUCCESS) {
+		printf("Failed to create persistent object, res=0x%08x", res);
+		goto exit;
+	}
+	if (object_info.dataSize > data_sz) {
+		/*
+		 * Provided buffer is too short.
+		 * Return the expected size together with status "short buffer"
+		 */
+        printf("here\n");
+		data_sz = object_info.dataSize;
+		res = TEE_ERROR_SHORT_BUFFER;
+		goto exit;
+	}
+	res = TEE_ReadObjectData(object, data, object_info.dataSize,
+				 &read_bytes);
+	if (res != TEE_SUCCESS || read_bytes != object_info.dataSize) {
+		printf("TEE_ReadObjectData failed 0x%08x, read %" PRIu32 " over %u",
+				res, read_bytes, object_info.dataSize);
+		goto exit;
+	}
+	data_sz = read_bytes;
+exit:
+	TEE_CloseObject(object);
+	return res;
+}
+
+static int get_key(char *cli_id, char *cli_key)
+{
+    size_t read_bytes = TA_AES_KEY_SIZE + 1;
+    //if ((read_raw_object(cli_id, strlen(cli_id), cli_key, read_bytes) 
+    if ((read_raw_object(cli_id, strlen(cli_id), cli_key, read_bytes) 
+            != TEE_SUCCESS))// || (read_bytes != TA_AES_KEY_SIZE))
+    {
+        printf("Key not found in storage!\n");
+        return 0;
+    }
+    printf("Key read from storage!\n");
+    return 0;
 }
 
 static int free_node(Node *node)
@@ -175,7 +234,9 @@ Node* cache_query(Hash *hash, Queue *queue, char *obj_id)
         // Cache Miss
         // Load from Secure Storage FIXME FIXME TODO
         // We do this instead for testing!
-        reqPage = init_node(obj_id, "1111111111111111");
+        char obj[TA_AES_KEY_SIZE + 1];
+        get_key(obj_id, obj);
+        reqPage = init_node(obj_id, obj);
         if (queue->size == CACHE_SIZE)
         {
             Node *tmp = queue_pop(queue);
@@ -223,50 +284,6 @@ void print_cache_status(Hash *hash)
     printf("-----------------------\n");
 }
 
-static TEE_Result read_raw_object(char *cli_id, size_t cli_id_size, char *data,
-        size_t data_sz)
-{
-	TEE_ObjectHandle object;
-	TEE_ObjectInfo object_info;
-	TEE_Result res;
-	uint32_t read_bytes;
-    // Check if object is in memory
-	res = TEE_OpenPersistentObject(TEE_STORAGE_PRIVATE,
-					cli_id, cli_id_size,
-					TEE_DATA_FLAG_ACCESS_READ |
-					TEE_DATA_FLAG_SHARE_READ,
-					&object);
-	if (res != TEE_SUCCESS) {
-		EMSG("Failed to open persistent object, res=0x%08x", res);
-		return res;
-	}
-	res = TEE_GetObjectInfo1(object, &object_info);
-	if (res != TEE_SUCCESS) {
-		EMSG("Failed to create persistent object, res=0x%08x", res);
-		goto exit;
-	}
-	if (object_info.dataSize > data_sz) {
-		/*
-		 * Provided buffer is too short.
-		 * Return the expected size together with status "short buffer"
-		 */
-		data_sz = object_info.dataSize;
-		res = TEE_ERROR_SHORT_BUFFER;
-		goto exit;
-	}
-	res = TEE_ReadObjectData(object, data, object_info.dataSize,
-				 &read_bytes);
-	if (res != TEE_SUCCESS || read_bytes != object_info.dataSize) {
-		EMSG("TEE_ReadObjectData failed 0x%08x, read %" PRIu32 " over %u",
-				res, read_bytes, object_info.dataSize);
-		goto exit;
-	}
-	data_sz = read_bytes;
-exit:
-	TEE_CloseObject(object);
-	return res;
-}
-
 static int save_key(char *cli_id, char *cli_key)
 {
     uint32_t obj_data_flag;
@@ -285,39 +302,31 @@ static int save_key(char *cli_id, char *cli_key)
         return 1;
     }
     TEE_CloseObject(object);
+    printf("Saved key with id: %s!\n", cli_id);
     return 0;
 }
 
-static int get_key(char *cli_id, char *cli_key, int key_mode)
+static int fill_ss_and_cache(Hash *hash, Queue *queue, int table_size,
+        int cache_size)
 {
-    // TODO Implement Cache Logic
-    char fke_key[TA_AES_KEY_SIZE + 1] = "11111111111111111111111111111111";
-    char my_id[TA_MQTTZ_CLI_ID_SZ + 1];
-    strncpy(my_id, cli_id, TA_MQTTZ_CLI_ID_SZ);
-    my_id[TA_MQTTZ_CLI_ID_SZ] = '\0';
-    printf("My ID: %s\n", my_id);
-    size_t read_bytes;
-    int res;
-    if (key_mode == 0)
-        goto keyinmem;
-    //if ((read_raw_object(cli_id, strlen(cli_id), cli_key, read_bytes) 
-    if ((read_raw_object(my_id, TA_MQTTZ_CLI_ID_SZ, cli_key, read_bytes) 
-            != TEE_SUCCESS))// || (read_bytes != TA_AES_KEY_SIZE))
+    unsigned int i;
+    char fake_key[TA_AES_KEY_SIZE + 1] = "11111111111111111111111111111111";
+    for (i = 0; i < table_size; i++)
     {
-        printf("MQTTZ: Key not found! Saving it to persistent storage.\n");
-        res = save_key(my_id, cli_key);
-        if (res != 0)
-        {
-            printf("MQTTZ: Error saving key to persistent storage.\n");
-            printf(" Using a fake one...\n");
-            goto keyinmem;
-        }
-        printf("MQTTZ: Succesfully stored key in SS!\n");
+        char fake_cli_id[TA_MQTTZ_CLI_ID_SZ + 1];
+        if (i >= 1000)
+            snprintf(fake_cli_id, TA_MQTTZ_CLI_ID_SZ + 1, "00000000%i", i);
+        else if (i < 1000 && i >= 100)
+            snprintf(fake_cli_id, TA_MQTTZ_CLI_ID_SZ + 1, "000000000%i", i);
+        else if (i < 100 && i >= 10)
+            snprintf(fake_cli_id, TA_MQTTZ_CLI_ID_SZ + 1, "0000000000%i", i);
+        else
+            snprintf(fake_cli_id, TA_MQTTZ_CLI_ID_SZ + 1, "00000000000%i", i);
+        //printf("This is the fake client id: %s\n", fake_cli_id);
+        save_key(fake_cli_id, fake_key);
+        if (i < cache_size)
+            cache_query(hash, queue, fake_cli_id);
     }
-    return 0;
-keyinmem:
-    strcpy(cli_key, fke_key);
-    cli_key[TA_AES_KEY_SIZE] = '\0';
     return 0;
 }
 
@@ -336,15 +345,8 @@ static TEE_Result cache_benchmarking(void *session, uint32_t param_types,
         return TEE_ERROR_BAD_PARAMETERS;
     Queue *queue = init_queue(CACHE_SIZE);
     Hash *hash = init_hash(TOTAL_ELEMENTS);
-    printf("Initialized Queue!\n");
-    print_cache_status(hash);
-    cache_query(hash, queue, "000000000000");
-    print_cache_status(hash);
-    cache_query(hash, queue, "000000000001");
-    print_cache_status(hash);
-    cache_query(hash, queue, "000000000002");
-    print_cache_status(hash);
-    cache_query(hash, queue, "000000000003");
+    printf("Initialized Queue and Hash Table!\n");
+    fill_ss_and_cache(hash, queue, TOTAL_ELEMENTS, CACHE_SIZE);
     print_cache_status(hash);
     free_queue(queue);
     free_hash(hash);
