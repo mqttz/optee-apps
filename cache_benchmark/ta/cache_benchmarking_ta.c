@@ -36,12 +36,12 @@
 
 #include <cache_benchmarking_ta.h>
 
-#define NUM_TESTS               2 //100
+#define NUM_TESTS               100
 #define TA_AES_KEY_SIZE         32
 #define TA_MQTTZ_CLI_ID_SZ      12
-#define TOTAL_ELEMENTS          64 // 12 64 128
+#define TOTAL_ELEMENTS          128 
 // To change every experiment
-#define CACHE_SIZE              128
+#define CACHE_SIZE              64 // 12 64 128
 
 typedef struct Node {
     char *id;
@@ -330,10 +330,22 @@ static int fill_ss_and_cache(Hash *hash, Queue *queue, int table_size,
     return 0;
 }
 
-static int random_query_cache(Hash *hash, Queue *queue, int table_size)
+int avg(int *arr, int num_elements)
+{
+    unsigned int i = 0;
+    int ret = 0; // double
+    for (i = 0; i < num_elements; i++)
+    {
+        ret += *(arr + i);
+    }
+    return ret / num_elements; 
+}
+
+static int random_query_cache(Hash *hash, Queue *queue, int table_size,
+        int *times)
 {
     unsigned int i;
-    //srand(1337);
+    TEE_Time t1, t2, t_aux;
     for (i = 0; i < table_size; i++)
     {
         int rand_num = rand() % table_size;
@@ -348,7 +360,11 @@ static int random_query_cache(Hash *hash, Queue *queue, int table_size)
         else
             snprintf(rand_id, TA_MQTTZ_CLI_ID_SZ + 1, "00000000000%i",
                     rand_num);
-        printf("Random ID: %s\n", rand_id);
+        TEE_GetSystemTime(&t1);
+        cache_query(hash, queue, rand_id);
+        TEE_GetSystemTime(&t2);
+        TEE_TIME_SUB(t2, t1, t_aux);
+        times[i] = t_aux.seconds * 1000 + t_aux.millis;
     }
 }
 
@@ -356,8 +372,9 @@ static TEE_Result cache_benchmarking(void *session, uint32_t param_types,
         TEE_Param params[4])
 {
     TEE_Result res;
-    TEE_Time t1, t2, t_aux;
     char fke_key[TA_AES_KEY_SIZE + 1] = "11111111111111111111111111111111";
+    int times[TOTAL_ELEMENTS];
+    int avg_times[NUM_TESTS];
     uint32_t exp_param_types = TEE_PARAM_TYPES(
             TEE_PARAM_TYPE_NONE,
             TEE_PARAM_TYPE_NONE,
@@ -369,8 +386,16 @@ static TEE_Result cache_benchmarking(void *session, uint32_t param_types,
     Hash *hash = init_hash(TOTAL_ELEMENTS);
     printf("Initialized Queue and Hash Table!\n");
     fill_ss_and_cache(hash, queue, TOTAL_ELEMENTS, CACHE_SIZE);
+    unsigned int i;
+    for (i = 0; i < NUM_TESTS; i++)
+    {
+        random_query_cache(hash, queue, TOTAL_ELEMENTS, times);
+        avg_times[i] = avg(times, TOTAL_ELEMENTS);
+    }
     print_cache_status(hash);
-    random_query_cache(hash, queue, TOTAL_ELEMENTS);
+    for (i = 0; i < NUM_TESTS; i++)
+        printf("%i\n", avg_times[i]);
+    //printf("Average: %f\n", avg(times, TOTAL_ELEMENTS));
     free_queue(queue);
     free_hash(hash);
     res = TEE_SUCCESS;
