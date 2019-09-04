@@ -26,6 +26,7 @@ struct test_ctx {
 	TEEC_Session sess;
 };
 
+/*
 int non_secure_payload_reencryption(mqttz_client *origin, mqttz_client *dest,
         mqttz_times *times)
 {
@@ -113,11 +114,11 @@ int non_secure_payload_reencryption(mqttz_client *origin, mqttz_client *dest,
             break;
     }
     return 0;
-}
+}*/
 
 void prepare_tee_session(struct test_ctx *ctx)
 {
-	TEEC_UUID uuid = TA_HOT_CACHE_UUID;
+	TEEC_UUID uuid = TA_CACHE_BENCHMARKING_UUID;
 	uint32_t origin;
 	TEEC_Result res;
 	res = TEEC_InitializeContext(NULL, &ctx->ctx);
@@ -158,9 +159,7 @@ int main(int argc, char *argv[])
 {
     printf("Starting Cache Benchmarking!\n");
 	struct test_ctx ctx;
-    parse_arguments(argc, argv, origin, dest);
     prepare_tee_session(&ctx);
-    times->key_mode = KEY_IN_SS;
     cache_benchmarking(&ctx);
     terminate_tee_session(&ctx);
     printf("Finished Cache Benchmarking!\n");

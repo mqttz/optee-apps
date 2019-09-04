@@ -26,6 +26,7 @@
  */
 
 #include <inttypes.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -64,12 +65,12 @@ typedef struct Hash {
 static Node* init_node(char *id, char *data)
 {
     Node *tmp = (Node *) TEE_Malloc(sizeof(Node), 0);
-    tmp->id = (char *) TEE_Malloc(sizeof(char) * (OBJ_ID_SIZE + 1), 0);
-    strncpy(tmp->id, id, OBJ_ID_SIZE);
-    tmp->id[OBJ_ID_SIZE] = '\0';
-    tmp->data = (char *) TEE_Malloc(sizeof(char) * (KEY_SIZE + 1), 0);
-    strncpy(tmp->data, data, KEY_SIZE);
-    tmp->data[KEY_SIZE] = '\0';
+    tmp->id = (char *) TEE_Malloc(sizeof(char) * (TA_MQTTZ_CLI_ID_SZ + 1), 0);
+    strncpy(tmp->id, id, TA_MQTTZ_CLI_ID_SZ);
+    tmp->id[TA_MQTTZ_CLI_ID_SZ] = '\0';
+    tmp->data = (char *) TEE_Malloc(sizeof(char) * (TA_AES_KEY_SIZE + 1), 0);
+    strncpy(tmp->data, data, TA_AES_KEY_SIZE);
+    tmp->data[TA_AES_KEY_SIZE] = '\0';
     tmp->prev = tmp->next = NULL;
     return tmp;
 }
@@ -154,7 +155,7 @@ int queue_to_front(Queue *queue, Node *node)
     if (queue->first == node)
         return 0;
     if (queue->last == node)
-        queue->last == node->prev;
+        queue->last = node->prev;
     else
         node->next->prev = node->prev;
     node->prev->next = node->next;
@@ -345,13 +346,13 @@ static TEE_Result cache_benchmarking(void *session, uint32_t param_types,
     print_cache_status(hash);
     cache_query(hash, queue, "000000000003");
     print_cache_status(hash);
-    free_queue(q);
+    free_queue(queue);
     free_hash(hash);
     res = TEE_SUCCESS;
     return res;
 }
 
-
+/*
 static TEE_Result payload_reencryption(void *session, uint32_t param_types,
         TEE_Param params[4])
 {
@@ -583,7 +584,7 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     goto exit;
 exit:
     return res;
-}
+}*/
 
 TEE_Result TA_CreateEntryPoint(void)
 {
@@ -600,25 +601,13 @@ TEE_Result TA_OpenSessionEntryPoint(uint32_t __unused param_types,
 				    TEE_Param __unused params[4],
 				    void __unused **session)
 {
-    aes_cipher *sess;
-    sess = TEE_Malloc(sizeof *sess, 0);
-    if (!sess)
-        return TEE_ERROR_OUT_OF_MEMORY;
-    sess->key_handle = TEE_HANDLE_NULL;
-    sess->op_handle = TEE_HANDLE_NULL;
-    *session = (void *)sess;
+	/* Nothing to do */
 	return TEE_SUCCESS;
 }
 
 void TA_CloseSessionEntryPoint(void __unused *session)
 {
-    aes_cipher *sess;
-    sess = (aes_cipher *) session;
-    if (sess->key_handle != TEE_HANDLE_NULL)
-        TEE_FreeTransientObject(sess->key_handle);
-    if (sess->op_handle != TEE_HANDLE_NULL)
-        TEE_FreeOperation(sess->op_handle);
-    TEE_Free(sess);
+	/* Nothing to do */
 }
 
 TEE_Result TA_InvokeCommandEntryPoint(void __unused *session,
