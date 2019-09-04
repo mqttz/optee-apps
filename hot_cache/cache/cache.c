@@ -2,14 +2,15 @@
 #include <stdio.h>
 #include <string.h>
 
-#define CACHE_SIZE      3
-#define TOTAL_ELEMENTS  12
+#define CACHE_SIZE      2
+#define TOTAL_ELEMENTS  4
 #define OBJ_ID_SIZE     12
 #define OBJ_SIZE        32
 #define CACHE_MODE_LRU  0
 #define KEY_SIZE        16
 
 typedef struct Node {
+    char *id;
     char *data;
     struct Node *next;
     struct Node *prev;
@@ -27,9 +28,12 @@ typedef struct Hash {
     Node **array;
 } Hash;
 
-Node* init_node(char *data)
+Node* init_node(char *id, char *data)
 {
     Node *tmp = (Node *) malloc(sizeof(Node));
+    tmp->id = (char *) malloc(sizeof(char) * (OBJ_ID_SIZE + 1));
+    strncpy(tmp->id, id, OBJ_ID_SIZE);
+    tmp->id[OBJ_ID_SIZE] = '\0';
     tmp->data = (char *) malloc(sizeof(char) * (KEY_SIZE + 1));
     strncpy(tmp->data, data, KEY_SIZE);
     tmp->data[KEY_SIZE] = '\0';
@@ -39,7 +43,9 @@ Node* init_node(char *data)
 
 int free_node(Node *node)
 {
+    free(node->id);
     free(node->data);
+    free(node); //TODO
     return 0;
 }
 
@@ -57,6 +63,7 @@ int free_queue(Queue *queue)
 {
     free(queue->first);
     free(queue->last);
+    free(queue);
     return 0;
 }
 
@@ -74,6 +81,7 @@ Hash* init_hash(int capacity)
 int free_hash(Hash *hash)
 {
     free(hash->array);
+    free(hash);
     return 0;
 }
 
@@ -83,9 +91,8 @@ Node* queue_pop(Queue *queue)
     if (queue->size == 0)
         return NULL;
     Node *old_last = queue->last;
-    queue->last = old_last->prev;
-    free_node(old_last); 
-    free(old_last); 
+    queue->last = queue->last->prev;
+    queue->last->next = NULL;
     queue->size -= 1;
     return old_last;
 }
@@ -115,28 +122,37 @@ int queue_to_front(Queue *queue, Node *node)
         return 0;
     if (queue->last == node)
         queue->last == node->prev;
+    else
+        node->next->prev = node->prev;
     node->prev->next = node->next;
-    node->next->prev = node->prev;
     node->prev = NULL;
     node->next = queue->first;
     queue->first->prev = node;
     queue->first = node;
+    return 0;
 }
 
-Node* cache_query(Hash *hash, Queue *queue, const char *obj_id)
+Node* cache_query(Hash *hash, Queue *queue, char *obj_id)
 {
     int page = atoi(obj_id) % hash->capacity;
     Node *reqPage = hash->array[page];
     if (reqPage == NULL)
     {
         // Cache Miss
-        // Load from Secure Storage
+        // Load from Secure Storage FIXME FIXME TODO
         // We do this instead for testing!
-        reqPage = init_node(obj_id);
+        reqPage = init_node(obj_id, "1111111111111111");
+        if (queue->size == CACHE_SIZE)
+        {
+            Node *tmp = queue_pop(queue);
+            int tmp_index = atoi(tmp->id) % hash->capacity;
+            hash->array[tmp_index] = NULL;
+            free_node(tmp);
+        }
         queue_push(queue, reqPage);
+        hash->array[page] = reqPage;
         return reqPage;
     }
-    // TODO Implement
     queue_to_front(queue, reqPage);
     return reqPage;
 }
@@ -160,11 +176,16 @@ void print_queue_status(Queue *queue)
 void print_cache_status(Hash *hash)
 {
     printf("-----------------------\n");
-    printf("Current Hash Status:\n\t- Table Size: %i\n\t", hash->capacity);
+    printf("Current Hash Status:\n\t- Table Size: %i\n", hash->capacity);
     printf("\t- Cache Size: %i\n\t- Elements:\n", CACHE_SIZE);
     unsigned int i;
     for (i = 0; i < hash->capacity; i++)
-        printf("\t\t%i -> %s\n", i, hash->array[i]->data);
+    {
+        if (hash->array[i] != NULL)
+            printf("\t\t%i -> %s\n", i, hash->array[i]->data);
+        else
+            printf("\t\t%i -> \n", i);
+    }
     printf("-----------------------\n");
 }
 
@@ -173,44 +194,16 @@ int main()
     Queue *q = init_queue(CACHE_SIZE);
     Hash *hash = init_hash(TOTAL_ELEMENTS);
     printf("Initialized Queue!\n");
-    print_queue_status(q);
-    queue_push(q, init_node("jaja"));
-    print_queue_status(q);
-    queue_push(q, init_node("jeje"));
-    print_queue_status(q);
-    queue_push(q, init_node("jiji"));
-    print_queue_status(q);
-    queue_push(q, init_node("jojo"));
-    print_queue_status(q);
-    queue_pop(q);
-    print_queue_status(q);
+    print_cache_status(hash);
+    cache_query(hash, q, "000000000000");
+    print_cache_status(hash);
+    cache_query(hash, q, "000000000001");
+    print_cache_status(hash);
+    cache_query(hash, q, "000000000002");
+    print_cache_status(hash);
+    cache_query(hash, q, "000000000003");
+    print_cache_status(hash);
     free_queue(q);
-    free(q);
+    free_hash(hash);
     return 0;
 }
-
-/*
-int init_cache(mqttz_cache *cache, int mode)
-{
-    cache->obj_id = malloc(sizeof(char) * OBJ_ID_SIZE * CACHE_SIZE + 1);
-    if (cache->obj_id == NULL)
-        return 1;
-    memset(cache->obj_id, '\0', sizeof(char) * OBJ_ID_SIZE 
-            * CACHE_SIZE + 1);
-    cache->obj = malloc(sizeof(char) * OBJ_SIZE * CACHE_SIZE + 1);
-    if (cache->obj == NULL)
-        return 1;
-    memset(cache->obj, '\0', sizeof(char) * OBJ_SIZE * CACHE_SIZE + 1);
-    cache->mode = mode;
-    cache->queue = malloc(sizeof cache->queue);
-    init_queue(cache->queue);
-    return 0;
-}
-
-int free_cache(mqttz_cache *cache)
-{
-    free(cache->obj_id);
-    free(cache->obj);
-    free_queue(cache->queue);
-    return 0;
-}*/
