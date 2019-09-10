@@ -590,7 +590,7 @@ int main(int argc, char *argv[])
     mqttz_times *times;
     times = malloc(sizeof *times);
     times->benchmark = 0;
-    times->world = SW;
+    times->world = NW;
 
     // Dummy TEE Context to check if all files are OK
 	//prepare_tee_session(&ctx);
