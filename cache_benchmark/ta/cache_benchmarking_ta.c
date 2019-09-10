@@ -39,9 +39,9 @@
 #define NUM_TESTS               100
 #define TA_AES_KEY_SIZE         32
 #define TA_MQTTZ_CLI_ID_SZ      12
-#define TOTAL_ELEMENTS          128 
+#define TOTAL_ELEMENTS          12//128 
 // To change every experiment
-#define CACHE_SIZE              128 // 12 64 128
+#define CACHE_SIZE              6 // 12 64 128
 
 typedef struct Node {
     char *id;

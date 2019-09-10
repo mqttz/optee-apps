@@ -26,6 +26,7 @@
  */
 
 #include <inttypes.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -39,6 +40,7 @@
 #define AES128_KEY_BYTE_SIZE		(AES128_KEY_BIT_SIZE / 8)
 #define AES256_KEY_BIT_SIZE		256
 #define AES256_KEY_BYTE_SIZE		(AES256_KEY_BIT_SIZE / 8)
+#define TABLE_SIZE              128
 
 typedef struct aes_cipher {
     uint32_t algo;
@@ -257,6 +259,7 @@ static int save_key(char *cli_id, char *cli_key)
         return 1;
     }
     TEE_CloseObject(object);
+    printf("Saved key with id: %s!\n", cli_id);
     return 0;
 }
 
@@ -264,32 +267,69 @@ static int get_key(char *cli_id, char *cli_key, int key_mode)
 {
     // TODO Implement Cache Logic
     char fke_key[TA_AES_KEY_SIZE + 1] = "11111111111111111111111111111111";
+    size_t read_bytes = TA_AES_KEY_SIZE + 1;
+    // FIXME this is the good version
+    //char my_id[TA_MQTTZ_CLI_ID_SZ + 1];
+    //strncpy(my_id, cli_id, TA_MQTTZ_CLI_ID_SZ);
+    //my_id[TA_MQTTZ_CLI_ID_SZ] = '\0';
+    //printf("My ID: %s %i\n", my_id, strlen(my_id));
+    // FIXME this is only for comparing w/ cache, comment after
+    int rand_num = rand() % TABLE_SIZE;
     char my_id[TA_MQTTZ_CLI_ID_SZ + 1];
-    strncpy(my_id, cli_id, TA_MQTTZ_CLI_ID_SZ);
-    my_id[TA_MQTTZ_CLI_ID_SZ] = '\0';
-    printf("My ID: %s\n", my_id);
-    size_t read_bytes;
-    int res;
+    if (rand_num >= 1000)
+        snprintf(my_id, TA_MQTTZ_CLI_ID_SZ + 1, "00000000%i", rand_num);
+    else if (rand_num < 1000 && rand_num >= 100)
+        snprintf(my_id, TA_MQTTZ_CLI_ID_SZ + 1, "000000000%i", rand_num);
+    else if (rand_num < 100 && rand_num >= 10)
+        snprintf(my_id, TA_MQTTZ_CLI_ID_SZ + 1, "0000000000%i",
+                rand_num);
+    else
+        snprintf(my_id, TA_MQTTZ_CLI_ID_SZ + 1, "00000000000%i",
+                rand_num);
+    printf("Rand ID: %s %i\n", my_id, strlen(my_id));
+    // Until here
     if (key_mode == 0)
         goto keyinmem;
     //if ((read_raw_object(cli_id, strlen(cli_id), cli_key, read_bytes) 
-    if ((read_raw_object(my_id, TA_MQTTZ_CLI_ID_SZ, cli_key, read_bytes) 
+    if ((read_raw_object(my_id, strlen(my_id), cli_key, read_bytes) 
             != TEE_SUCCESS))// || (read_bytes != TA_AES_KEY_SIZE))
     {
-        printf("MQTTZ: Key not found! Saving it to persistent storage.\n");
-        res = save_key(my_id, cli_key);
-        if (res != 0)
-        {
-            printf("MQTTZ: Error saving key to persistent storage.\n");
-            printf(" Using a fake one...\n");
-            goto keyinmem;
-        }
-        printf("MQTTZ: Succesfully stored key in SS!\n");
+        // FIXME We should not do this, using cache instead
+        // FIXME We should run the TA as a service not to reload it every time
+        //printf("MQTTZ: Key not found! Saving it to persistent storage.\n");
+        //save_key(my_id, cli_key);
+        //printf("MQTTZ: Only once!!!\n");
+        //return 0;
+        // FIXME delete from previous FIXME to this one
+        printf("Key not found in storage!\n");
+        return 1;
     }
     return 0;
 keyinmem:
     strcpy(cli_key, fke_key);
     cli_key[TA_AES_KEY_SIZE] = '\0';
+    return 0;
+}
+
+static int fill_ss(int table_size)
+{
+    printf("Filling Secure Storage...\n");
+    unsigned int i;
+    char fake_key[TA_AES_KEY_SIZE + 1] = "11111111111111111111111111111111";
+    for (i = 0; i < table_size; i++)
+    {
+        char fake_cli_id[TA_MQTTZ_CLI_ID_SZ + 1];
+        if (i >= 1000)
+            snprintf(fake_cli_id, TA_MQTTZ_CLI_ID_SZ + 1, "00000000%i", i);
+        else if (i < 1000 && i >= 100)
+            snprintf(fake_cli_id, TA_MQTTZ_CLI_ID_SZ + 1, "000000000%i", i);
+        else if (i < 100 && i >= 10)
+            snprintf(fake_cli_id, TA_MQTTZ_CLI_ID_SZ + 1, "0000000000%i", i);
+        else
+            snprintf(fake_cli_id, TA_MQTTZ_CLI_ID_SZ + 1, "00000000000%i", i);
+        //printf("This is the fake client id: %s\n", fake_cli_id);
+        save_key(fake_cli_id, fake_key);
+    }
     return 0;
 }
 
@@ -307,42 +347,14 @@ static TEE_Result payload_reencryption(void *session, uint32_t param_types,
     if (param_types != exp_param_types)
         return TEE_ERROR_BAD_PARAMETERS;
     printf("MQTTZ: Entered SW\n");
-    // TODO
+    // 0. Pre-load keys for a fair comparison with the cache
+    if (params[3].value.b == 1)
+    {
+        fill_ss(TABLE_SIZE);
+    }
     // 1. Decrypt from Origin
-    // char *ori_cli_id;
-    // char *ori_cli_iv;
-    //char *ori_cli_data;
-    //char *tmp_buffer;
-    //tmp_buffer = (char *) TEE_Malloc(sizeof *tmp_buffer
-    //        * (100 + 1), 0);
     size_t data_size = params[0].memref.size - TA_MQTTZ_CLI_ID_SZ 
             - TA_AES_IV_SIZE;
-    // ori_cli_id = (char *) TEE_Malloc(sizeof *ori_cli_id 
-    //        * (TA_MQTTZ_CLI_ID_SZ + 1), 0);
-    //ori_cli_iv = (char *) TEE_Malloc(sizeof *ori_cli_iv 
-    //        * (TA_AES_IV_SIZE + 1), 0);
-    //ori_cli_data = (char *) TEE_Malloc(sizeof *ori_cli_data 
-    //        * (TA_MQTTZ_MAX_MSG_SZ + 1), 0);
-    //if (!(ori_cli_id && ori_cli_iv && ori_cli_data))
-    //if (!(ori_cli_iv))
-    //{
-    //    res = TEE_ERROR_OUT_OF_MEMORY;
-    //    goto exit;
-    //}
-    printf("MQTTZ: Allocated input args\n");
-    //TEE_MemMove(ori_cli_id, (char *) params[0].memref.buffer,
-    //        TA_MQTTZ_CLI_ID_SZ);
-    //ori_cli_id[TA_MQTTZ_CLI_ID_SZ] = '\0';
-    //TEE_MemMove(ori_cli_iv, (char *) params[0].memref.buffer
-    //  + TA_MQTTZ_CLI_ID_SZ, TA_AES_IV_SIZE);
-    //ori_cli_iv[TA_AES_IV_SIZE] = '\0';
-    //TEE_MemMove(ori_cli_data, (char *) params[0].memref.buffer 
-    //        + TA_MQTTZ_CLI_ID_SZ + TA_AES_IV_SIZE, data_size);
-    //ori_cli_data[data_size] = '\0';
-    printf("MQTTZ: Loaded Values\n");
-    //printf("\t- Cli id: %s\n", ori_cli_id);
-    //printf("\t- Cli iv: %s\n", ori_cli_iv);
-    //printf("\t- Cli data: %s\n", ori_cli_data);
     // 2. Read key from secure storage
     TEE_GetSystemTime(&t1);
     char *ori_cli_key;

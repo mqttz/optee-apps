@@ -32,7 +32,7 @@ typedef struct mqttz_client {
     char *data;
 } mqttz_client;
 
-#define MQTTZ_MAX_MSG_SIZE              4096
+#define MQTTZ_MAX_MSG_SIZE              20096
 #define AES_IV_SIZE                     16
 #define AES_KEY_SIZE                    32
 // Benchmark Parameters
@@ -58,6 +58,7 @@ typedef struct mqttz_times {
     int key_mode;
     int world;
     bool benchmark;
+    bool first;
 } mqttz_times;
 
 
@@ -325,6 +326,8 @@ TEEC_Result payload_reencryption(struct test_ctx *ctx, mqttz_client *origin,
     op.params[2].tmpref.buffer = malloc(sizeof(char) * 100);
     op.params[2].tmpref.size = 100;
     op.params[3].value.a = times->key_mode;
+    op.params[3].value.b = times->first;
+    // TODO in value.b include if first or not
     /*
     printf("Invokation with this params: \n%s\n%s\n%s\n%i\n",
             op.params[0].tmpref.buffer, op.params[1].tmpref.buffer,
@@ -334,6 +337,7 @@ TEEC_Result payload_reencryption(struct test_ctx *ctx, mqttz_client *origin,
     // Results are stored in tmp_dest
     const char deli[] = ",";
     char *token;
+    printf("Times: %s\n", op.params[2].tmpref.buffer);
     token = strtok(op.params[2].tmpref.buffer, deli);
     times->t_ret_dec_key = (struct timeval){0, atoi(token) * 1000};
     token = strtok(NULL, deli);
@@ -373,9 +377,9 @@ int parse_arguments(int argc, char *argv[], mqttz_client *origin,
         memset(origin->iv, '1', AES_IV_SIZE);
         origin->iv[AES_IV_SIZE] = '\0';
         // Fake origin data
-        origin->data = malloc(sizeof *(origin->data) * (4000 + 1));
-        memset(origin->data, 'h', 4000 + 1);
-        origin->data[4000] = '\0';
+        origin->data = malloc(sizeof *(origin->data) * (20000 + 1));
+        memset(origin->data, 'h', 20000 + 1);
+        origin->data[20000] = '\0';
         // Destination Client ID
         dest->cli_id = malloc(sizeof *(dest->cli_id) * (strlen(argv[2]) + 1));
         memset(dest->cli_id, '\0', (strlen(argv[2]) + 1));
@@ -455,6 +459,7 @@ int benchmark(struct test_ctx *ctx, mqttz_client *origin, mqttz_client *dest,
     fake_key[AES_KEY_SIZE] = '\0';
     fputs(fake_key, fp);
     fclose(fp);
+    times->first = true;
     for (test = 0; test < NUMBER_TESTS; test++)
     {
         for (world = 0; world < NUMBER_WORLDS; world++)
@@ -473,6 +478,7 @@ int benchmark(struct test_ctx *ctx, mqttz_client *origin, mqttz_client *dest,
                     case SW:
 	                    prepare_tee_session(ctx);
                         payload_reencryption(ctx, origin, dest, times);
+                        times->first = false;
 	                    terminate_tee_session(ctx);
                         break;
                     default:
@@ -589,8 +595,9 @@ int main(int argc, char *argv[])
     dest = malloc(sizeof *dest);
     mqttz_times *times;
     times = malloc(sizeof *times);
-    times->benchmark = 0;
+    times->benchmark = 1;
     times->world = NW;
+    times->first = false;
 
     // Dummy TEE Context to check if all files are OK
 	//prepare_tee_session(&ctx);
