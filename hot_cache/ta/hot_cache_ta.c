@@ -268,12 +268,12 @@ static int get_key(char *cli_id, char *cli_key, int key_mode)
     // TODO Implement Cache Logic
     char fke_key[TA_AES_KEY_SIZE + 1] = "11111111111111111111111111111111";
     size_t read_bytes = TA_AES_KEY_SIZE + 1;
-    // FIXME this is the good version
-    //char my_id[TA_MQTTZ_CLI_ID_SZ + 1];
-    //strncpy(my_id, cli_id, TA_MQTTZ_CLI_ID_SZ);
-    //my_id[TA_MQTTZ_CLI_ID_SZ] = '\0';
-    //printf("My ID: %s %i\n", my_id, strlen(my_id));
+    char my_id[TA_MQTTZ_CLI_ID_SZ + 1];
+    strncpy(my_id, cli_id, TA_MQTTZ_CLI_ID_SZ);
+    my_id[TA_MQTTZ_CLI_ID_SZ] = '\0';
+    printf("My ID: %s %i\n", my_id, strlen(my_id));
     // FIXME this is only for comparing w/ cache, comment after
+    /*
     int rand_num = rand() % TABLE_SIZE;
     char my_id[TA_MQTTZ_CLI_ID_SZ + 1];
     if (rand_num >= 1000)
@@ -287,7 +287,7 @@ static int get_key(char *cli_id, char *cli_key, int key_mode)
         snprintf(my_id, TA_MQTTZ_CLI_ID_SZ + 1, "00000000000%i",
                 rand_num);
     printf("Rand ID: %s %i\n", my_id, strlen(my_id));
-    // Until here
+    */// Until here
     if (key_mode == 0)
         goto keyinmem;
     //if ((read_raw_object(cli_id, strlen(cli_id), cli_key, read_bytes) 
@@ -296,12 +296,12 @@ static int get_key(char *cli_id, char *cli_key, int key_mode)
     {
         // FIXME We should not do this, using cache instead
         // FIXME We should run the TA as a service not to reload it every time
-        //printf("MQTTZ: Key not found! Saving it to persistent storage.\n");
-        //save_key(my_id, cli_key);
-        //printf("MQTTZ: Only once!!!\n");
-        //return 0;
+        printf("MQTTZ: Key not found! Saving it to persistent storage.\n");
+        save_key(my_id, cli_key);
+        printf("MQTTZ: Only once!!!\n");
+        return 0;
         // FIXME delete from previous FIXME to this one
-        printf("Key not found in storage!\n");
+        //printf("Key not found in storage!\n");
         return 1;
     }
     return 0;

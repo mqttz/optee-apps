@@ -32,7 +32,7 @@ typedef struct mqttz_client {
     char *data;
 } mqttz_client;
 
-#define MQTTZ_MAX_MSG_SIZE              20096
+#define MQTTZ_MAX_MSG_SIZE              2096
 #define AES_IV_SIZE                     16
 #define AES_KEY_SIZE                    32
 // Benchmark Parameters
@@ -377,9 +377,9 @@ int parse_arguments(int argc, char *argv[], mqttz_client *origin,
         memset(origin->iv, '1', AES_IV_SIZE);
         origin->iv[AES_IV_SIZE] = '\0';
         // Fake origin data
-        origin->data = malloc(sizeof *(origin->data) * (20000 + 1));
-        memset(origin->data, 'h', 20000 + 1);
-        origin->data[20000] = '\0';
+        origin->data = malloc(sizeof *(origin->data) * (250 + 1));
+        memset(origin->data, 'h', 250 + 1);
+        origin->data[250] = '\0';
         // Destination Client ID
         dest->cli_id = malloc(sizeof *(dest->cli_id) * (strlen(argv[2]) + 1));
         memset(dest->cli_id, '\0', (strlen(argv[2]) + 1));
@@ -595,7 +595,7 @@ int main(int argc, char *argv[])
     dest = malloc(sizeof *dest);
     mqttz_times *times;
     times = malloc(sizeof *times);
-    times->benchmark = 1;
+    times->benchmark = 0;
     times->world = NW;
     times->first = false;
 
