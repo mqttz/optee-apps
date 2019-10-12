@@ -21,6 +21,7 @@ struct test_ctx {
 	TEEC_Session sess;
 };
 
+#define BUFFER_SIZE 1024
 #define MAX         80
 #define PORT        9999
 #define REMOTE_IP   "10.0.2.2"
@@ -50,65 +51,65 @@ void terminate_tee_session(struct test_ctx *ctx)
 	TEEC_FinalizeContext(&ctx->ctx);
 }
 
-/*
-TEEC_Result read_secure_object(struct test_ctx *ctx, char *id,
-			char *data, size_t data_len)
+void ree_tcp_server(int sockfd, char *buffer)
 {
-	TEEC_Operation op;
-	uint32_t origin;
-	TEEC_Result res;
-	size_t id_len = strlen(id);
-
-	memset(&op, 0, sizeof(op));
-	op.paramTypes = TEEC_PARAM_TYPES(TEEC_MEMREF_TEMP_INPUT,
-					 TEEC_MEMREF_TEMP_OUTPUT,
-					 TEEC_NONE, TEEC_NONE);
-
-	op.params[0].tmpref.buffer = id;
-	op.params[0].tmpref.size = id_len;
-
-	op.params[1].tmpref.buffer = data;
-	op.params[1].tmpref.size = data_len;
-
-	res = TEEC_InvokeCommand(&ctx->sess,
-				 TA_SECURE_STORAGE_CMD_READ_RAW,
-				 &op, &origin);
-	switch (res) {
-	case TEEC_SUCCESS:
-	case TEEC_ERROR_SHORT_BUFFER:
-	case TEEC_ERROR_ITEM_NOT_FOUND:
-		break;
-	default:
-		printf("Command READ_RAW failed: 0x%x / %u\n", res, origin);
-	}
-
-	return res;
-}
-*/
-
-void func(int sockfd)
-{
-    char buff[MAX];
     int n;
     // Infinite Loop
     for (;;) {
-        memset(buff, '\0', MAX);
+        memset(buffer, '\0', MAX);
         n = 0;
-
         // Read message from client and copy it in buffer
-        read(sockfd, buff, sizeof(buff));
-        printf("From client: %s\t To client:", buff);
-        memset(buff, '\0', MAX);
-
+        read(sockfd, buffer, sizeof(buffer));
+        printf("From client: %s\t To client:", buffer);
+        memset(buffer, '\0', MAX);
         // Read input and send message to client
-        while ((buff[n++] = getchar()) != '\n');
-        write (sockfd, buff, sizeof(buff));
-
+        while ((buffer[n++] = getchar()) != '\n');
+        write (sockfd, buffer, sizeof buffer);
         if (strncmp("exit", buff, 4) == 0) {
             printf("Server Exit...\n");
             break;
         }
     }
+}
+
+int ree_tcp_socket(char *buffer)
+{
+    int server_fd, new_socket, valread;
+    struct sockaddr_in address;
+    int opt = 1;
+    int addrlen = sizeof(address);
+    // Creating Socket File Descriptor
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+        perror("Socket Failed");
+        return 1;
+    }
+    // Attaching to port 8080
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt,
+                                                            sizeof(opt))) {
+        perror("Set Socket Options Failed");
+        return 1;
+    }
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY; 
+    address.sin_port = htons( PORT );
+    if (bind(server_fd, (struct sockaddr *) &address, sizeof(address)) < 0) {
+        perror("Bind Failed");
+        return 1;
+    }
+    if (listen(server_fd, 3) < 0) {
+        perror("Listen Failed");
+        return 1;
+    }
+    if ((new_socket = accept(server_fd, (struct sockaddr *) &address,
+                    (socklen_t *) &addrlen)) < 0) {
+        perror("Accept Failed");
+        return 1;
+    }
+    // Chatting between server and client
+    ree_tcp_server(new_socket, buffer);
+    // Close the socket when finished
+    close(server_fd);
+    return 0;
 }
 
 int main(int argc, char *argv[])
@@ -120,49 +121,14 @@ int main(int argc, char *argv[])
     // Dummy TEE Context to check if all files are OK
 	prepare_tee_session(&ctx);
 
-    int server_fd, new_socket, valread;
-    struct sockaddr_in address;
-    int opt = 1;
-    int addrlen = sizeof(address);
-    char buffer[1024] = {0};
-    char *hello =  "Hello from server";
-
-    // Creating Socket File Descriptor
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
-        perror("Socket Failed");
-        exit(EXIT_FAILURE);
+    char *buffer; 
+    buffer = (char *) malloc(sizeof buffer * BUFFER_SIZE);
+    memset(buffer, '\0', sizeof buffer * BUFFER_SIZE);
+    if (ree_tcp_socket(buffer) != 0)
+    {
+        printf("REE TCP Socket failure!\n");
+        return 1;
     }
-
-    // Attaching to port 8080
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt,
-                                                            sizeof(opt))) {
-        perror("Set Socket Options Failed");
-        exit(EXIT_FAILURE);
-    }
-
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY; 
-    address.sin_port = htons( PORT );
-
-    if (bind(server_fd, (struct sockaddr *) &address, sizeof(address)) < 0) {
-        perror("Bind Failed");
-        exit(EXIT_FAILURE);
-    }
-    if (listen(server_fd, 3) < 0) {
-        perror("Listen Failed");
-        exit(EXIT_FAILURE);
-    }
-    if ((new_socket = accept(server_fd, (struct sockaddr *) &address,
-                    (socklen_t *) &addrlen)) < 0) {
-        perror("Accept Failed");
-        exit(EXIT_FAILURE);
-    }
-    
-    // Chatting between server and client
-    func(new_socket);
-
-    // Close the socket when finished
-    close(server_fd);
 
     // Terminate Dummy TEE Context
 	terminate_tee_session(&ctx);
