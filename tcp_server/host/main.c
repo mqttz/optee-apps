@@ -56,16 +56,16 @@ void ree_tcp_server(int sockfd, char *buffer)
     int n;
     // Infinite Loop
     for (;;) {
-        memset(buffer, '\0', MAX);
+        memset(buffer, '\0', BUFFER_SIZE);
         n = 0;
         // Read message from client and copy it in buffer
         read(sockfd, buffer, sizeof(buffer));
-        printf("From client: %s\t To client:", buffer);
-        memset(buffer, '\0', MAX);
+        printf("From client: %s\t\nTo client:", buffer);
+        memset(buffer, '\0', BUFFER_SIZE);
         // Read input and send message to client
         while ((buffer[n++] = getchar()) != '\n');
         write (sockfd, buffer, sizeof buffer);
-        if (strncmp("exit", buff, 4) == 0) {
+        if (strncmp("exit", buffer, 4) == 0) {
             printf("Server Exit...\n");
             break;
         }
@@ -110,6 +110,28 @@ int ree_tcp_socket(char *buffer)
     // Close the socket when finished
     close(server_fd);
     return 0;
+}
+
+TEEC_Result tee_tcp_socket(struct test_ctx *ctx, buffer)
+{
+    TEEC_Operation op;
+    TEEC_Result res;
+    uint32_t ori;
+
+    memset(&op, 0 sizeof op);
+    op.paramTypes = TEEC_PARAM_TYPES(
+            TEEC_MEMREF_TEMP_INPUT,
+            TEEC_NONE,
+            TEEC_NONE,
+            TEEC_NONE);
+    
+    strcpy(buffer, "Hello World!");
+    op.params[0].tmpref.buffer = buffer;
+    op.params[0].tmpref.size = BUFFER_SIZE;
+
+    res = TEEC_InvokeCommand(&ctx->sess, TA_TCP_SOCKET, &op, &ori);
+
+    return res;
 }
 
 int main(int argc, char *argv[])
