@@ -119,6 +119,8 @@ TEE_Result TA_tcp_socket(void)
 	if (param_types != exp_param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+    printf(params[0].memref.buffer, "%s\n");
+
     return TEE_SUCCESS;
 }
 

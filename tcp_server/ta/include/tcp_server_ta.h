@@ -32,30 +32,12 @@
 		{ 0xab3e985c, 0xc096, 0x4d22, \
 			{ 0xb4, 0x60, 0x5d, 0x9c, 0x17, 0xd7, 0x07, 0x13 } }
 /*
- * TA_SECURE_STORAGE_CMD_READ_RAW - Create and fill a secure storage file
+ * TA_TCP_SOCKET - Create and send something using the secure socket API
  * param[0] (memref) ID used the identify the persistent object
  * param[1] (memref) Raw data dumped from the persistent object
  * param[2] unused
  * param[3] unused
  */
-#define TA_SECURE_STORAGE_CMD_READ_RAW		0
-
-/*
- * TA_SECURE_STORAGE_CMD_WRITE_RAW - Create and fill a secure storage file
- * param[0] (memref) ID used the identify the persistent object
- * param[1] (memref) Raw data to be writen in the persistent object
- * param[2] unused
- * param[3] unused
- */
-#define TA_SECURE_STORAGE_CMD_WRITE_RAW		1
-
-/*
- * TA_SECURE_STORAGE_CMD_DELETE - Delete a persistent object
- * param[0] (memref) ID used the identify the persistent object
- * param[1] unused
- * param[2] unused
- * param[3] unused
- */
-#define TA_SECURE_STORAGE_CMD_DELETE		2
+#define TA_TCP_SOCKET                   0
 
 #endif /* __SECURE_STORAGE_H__ */

@@ -112,7 +112,7 @@ int ree_tcp_socket(char *buffer)
     return 0;
 }
 
-TEEC_Result tee_tcp_socket(struct test_ctx *ctx, buffer)
+TEEC_Result tee_tcp_socket(struct test_ctx *ctx, char *buffer)
 {
     TEEC_Operation op;
     TEEC_Result res;
