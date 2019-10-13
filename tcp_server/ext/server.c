@@ -6,7 +6,7 @@
 #include <unistd.h>
 
 #define MAX         80
-#define PORT        9999
+#define PORT        9998
 //#define REMOTE_IP   "163.172.155.43"
 #define REMOTE_IP   "127.0.0.1"
 

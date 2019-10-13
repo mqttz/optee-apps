@@ -23,7 +23,7 @@ struct test_ctx {
 
 #define BUFFER_SIZE                                 1024
 #define MAX                                         80
-#define PORT                                        9999
+#define PORT                                        9998
 #define REMOTE_IP                                   "10.0.2.2"
 #define TCP_SERVER_MODE                             0
 #define TCP_CLIENT_MODE                             1
@@ -166,7 +166,9 @@ int ree_tcp_socket_client(char *buffer)
         printf("\nConnection Failed \n"); 
         return -1; 
     } 
-    ree_tcp_client(sock, buffer);
+    //ree_tcp_client(sock, buffer);
+    char *hello = "Hello from QEMU!\n";
+    send(sock, hello, strlen(hello), 0);
     close(sock);
     return 0;
 }
