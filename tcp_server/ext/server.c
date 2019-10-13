@@ -7,7 +7,8 @@
 
 #define MAX         80
 #define PORT        9999
-#define REMOTE_IP   "163.172.155.43"
+//#define REMOTE_IP   "163.172.155.43"
+#define REMOTE_IP   "127.0.0.1"
 
 void func(int sockfd)
 {

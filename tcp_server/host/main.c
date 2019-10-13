@@ -21,10 +21,12 @@ struct test_ctx {
 	TEEC_Session sess;
 };
 
-#define BUFFER_SIZE 1024
-#define MAX         80
-#define PORT        9999
-#define REMOTE_IP   "10.0.2.2"
+#define BUFFER_SIZE                                 1024
+#define MAX                                         80
+#define PORT                                        9999
+#define REMOTE_IP                                   "10.0.2.2"
+#define TCP_SERVER_MODE                             0
+#define TCP_CLIENT_MODE                             1
 
 void prepare_tee_session(struct test_ctx *ctx)
 {
@@ -72,7 +74,31 @@ void ree_tcp_server(int sockfd, char *buffer)
     }
 }
 
-int ree_tcp_socket(char *buffer)
+void ree_tcp_client(int sockfd, char *buffer)
+{
+    int n;
+    // Infinite Communication
+    /*
+    for (;;) {
+        memset(buffer, '\0', BUFFER_SIZE);
+        n = 0;
+        printf("Enter message to server:\n");
+        while ((buffer[n++] = getchar()) != '\n');
+        write(sockfd, buffer, sizeof buffer);
+        if (strncmp("exit", buffer, 4) == 0) {
+            printf("Server Exit...\n");
+            break;
+        }
+    }*/
+    // One Shot
+    memset(buffer, '\0', BUFFER_SIZE);
+    n = 0;
+    printf("Enter message to server:\n");
+    while ((buffer[n++] = getchar()) != '\n');
+    write(sockfd, buffer, sizeof buffer);
+}
+
+int ree_tcp_socket_server(char *buffer)
 {
     int server_fd, new_socket, valread;
     struct sockaddr_in address;
@@ -105,10 +131,43 @@ int ree_tcp_socket(char *buffer)
         perror("Accept Failed");
         return 1;
     }
-    // Chatting between server and client
-    ree_tcp_server(new_socket, buffer);
+    ree_tcp_server(server_fd, buffer);
     // Close the socket when finished
     close(server_fd);
+    return 0;
+}
+
+int ree_tcp_socket_client(char *buffer)
+{
+    int sock = 0;
+    struct sockaddr_in address;
+    struct sockaddr_in serv_addr;
+    int opt = 1;
+    int addrlen = sizeof(address);
+
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) { 
+        printf("\n Socket creation error \n"); 
+        return -1; 
+    } 
+   
+    memset(&serv_addr, '0', sizeof(serv_addr)); 
+    serv_addr.sin_family = AF_INET; 
+    serv_addr.sin_port = htons(PORT); 
+       
+    // Convert IPv4 and IPv6 addresses from text to binary form 
+    if(inet_pton(AF_INET, REMOTE_IP, &serv_addr.sin_addr)<=0)  
+    { 
+        printf("\nInvalid address/ Address not supported \n"); 
+        return -1; 
+    } 
+   
+    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) 
+    { 
+        printf("\nConnection Failed \n"); 
+        return -1; 
+    } 
+    ree_tcp_client(sock, buffer);
+    close(sock);
     return 0;
 }
 
@@ -146,18 +205,27 @@ int main(int argc, char *argv[])
     char *buffer; 
     buffer = (char *) malloc(sizeof buffer * BUFFER_SIZE);
     memset(buffer, '\0', sizeof buffer * BUFFER_SIZE);
-    /*
-    if (ree_tcp_socket(buffer) != 0)
+    int mode = TCP_CLIENT_MODE;
+    
+    switch (mode)
     {
-        printf("REE TCP Socket failure!\n");
-        return 1;
-    }*/
+    case TCP_SERVER_MODE:
+        ree_tcp_socket_server(buffer);
+        break;
+    case TCP_CLIENT_MODE:
+        ree_tcp_socket_client(buffer);
+        break;
+    default:
+        printf("Unknown TCP Mode\n");
+    }
 
+    /*
     if (tee_tcp_socket(&ctx, buffer) != TEEC_SUCCESS)
     {
         printf("TEE TCP Socket failure!\n");
         return 1;
     }
+    */
 
     // Terminate Dummy TEE Context
 	terminate_tee_session(&ctx);
