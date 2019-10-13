@@ -27,6 +27,7 @@ struct test_ctx {
 #define REMOTE_IP                                   "10.0.2.2"
 #define TCP_SERVER_MODE                             0
 #define TCP_CLIENT_MODE                             1
+#define TEE_TCP                                     3
 
 void prepare_tee_session(struct test_ctx *ctx)
 {
@@ -207,7 +208,8 @@ int main(int argc, char *argv[])
     char *buffer; 
     buffer = (char *) malloc(sizeof buffer * BUFFER_SIZE);
     memset(buffer, '\0', sizeof buffer * BUFFER_SIZE);
-    int mode = TCP_CLIENT_MODE;
+    //int mode = TCP_CLIENT_MODE;
+    int mode = TEE_TCP;
     
     switch (mode)
     {
@@ -217,17 +219,16 @@ int main(int argc, char *argv[])
     case TCP_CLIENT_MODE:
         ree_tcp_socket_client(buffer);
         break;
+    case TEE_TCP:
+        if (tee_tcp_socket(&ctx, buffer) != TEEC_SUCCESS)
+        {
+            printf("TEE TCP Socket failure!\n");
+            return 1;
+        }
+        break;
     default:
-        printf("Unknown TCP Mode\n");
+        printf("Unknown Mode\n");
     }
-
-    /*
-    if (tee_tcp_socket(&ctx, buffer) != TEEC_SUCCESS)
-    {
-        printf("TEE TCP Socket failure!\n");
-        return 1;
-    }
-    */
 
     // Terminate Dummy TEE Context
 	terminate_tee_session(&ctx);

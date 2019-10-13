@@ -130,15 +130,22 @@ TEE_Result TA_tcp_socket(uint32_t param_types, TEE_Param params[4])
     TEE_iSocketHandle *tee_socket_handle;
 
     // Define Socket
-    TEE_iSocket *const TEE_tcpSocket; /*= {
+    /*TEE_tcpSocket t; = {
         .protocolID = TEE_ISOCKET_PROTOCOLID_TCP,
         .TEE_iSocketVersion = TEE_ISOCKET_VERSION
     };*/
     //TEE_tcpSocket->protocolID = TEE_ISOCKET_PROTOCOLID_TCP;
     //TEE_tcpSocket->TEE_iSocketVersion = TEE_ISOCKET_VERSION;
+    //TEE_tcpSocket->protocolID = TEE_ISOCKET_PROTOCOLID_TCP;
+    //TEE_tcpSocket->TEE_iSocketVersion = TEE_ISOCKET_VERSION;
     uint32_t error_code;
     res = (*TEE_tcpSocket->open)(tee_socket_handle, tcp_socket_setup,
             error_code);
+    printf("Hello\n");
+    //res = (*TEE_tcpSocket->send)(tee_socket_handle, params[0].memref.buffer,
+    //        params[0].memref.size, 60);
+    //printf("Hello\n");
+    //res = (*TEE_tcpSocket->close)(tee_socket_handle);
 
 
     printf("%s\n", (char *) params[0].memref.buffer);
