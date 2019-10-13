@@ -40,4 +40,7 @@
  */
 #define TA_TCP_SOCKET                   0
 
+#define TA_SERVER_IP                    "10.0.2.2"
+#define TA_SERVER_PORT                  9999
+
 #endif /* __SECURE_STORAGE_H__ */

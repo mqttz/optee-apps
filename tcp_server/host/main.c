@@ -118,7 +118,7 @@ TEEC_Result tee_tcp_socket(struct test_ctx *ctx, char *buffer)
     TEEC_Result res;
     uint32_t ori;
 
-    memset(&op, 0 sizeof op);
+    memset(&op, 0, sizeof op);
     op.paramTypes = TEEC_PARAM_TYPES(
             TEEC_MEMREF_TEMP_INPUT,
             TEEC_NONE,
@@ -146,9 +146,16 @@ int main(int argc, char *argv[])
     char *buffer; 
     buffer = (char *) malloc(sizeof buffer * BUFFER_SIZE);
     memset(buffer, '\0', sizeof buffer * BUFFER_SIZE);
+    /*
     if (ree_tcp_socket(buffer) != 0)
     {
         printf("REE TCP Socket failure!\n");
+        return 1;
+    }*/
+
+    if (tee_tcp_socket(&ctx, buffer) != TEEC_SUCCESS)
+    {
+        printf("TEE TCP Socket failure!\n");
         return 1;
     }
 

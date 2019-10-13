@@ -28,6 +28,7 @@
 #include <tcp_server_ta.h>
 #include <tee_internal_api.h>
 #include <tee_internal_api_extensions.h>
+#include <tee_tcpsocket.h>
 
 static TEE_Result read_raw_object(uint32_t param_types, TEE_Param params[4])
 {
@@ -108,8 +109,9 @@ exit:
 	return res;
 }
 
-TEE_Result TA_tcp_socket(void)
+TEE_Result TA_tcp_socket(uint32_t param_types, TEE_Param params[4])
 {
+    TEE_Result res;
 	const uint32_t exp_param_types =
 		TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
 				TEE_PARAM_TYPE_NONE,
@@ -119,7 +121,27 @@ TEE_Result TA_tcp_socket(void)
 	if (param_types != exp_param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-    printf(params[0].memref.buffer, "%s\n");
+    // TCP Socket Set Up
+    TEE_ipSocket_ipVersion ta_ip_version = TEE_IP_VERSION_4;
+    TEE_tcpSocket_Setup *tcp_socket_setup;
+    tcp_socket_setup->ipVersion = ta_ip_version;
+    tcp_socket_setup->server_addr = TA_SERVER_IP;
+    tcp_socket_setup->server_port = TA_SERVER_PORT;
+    TEE_iSocketHandle *tee_socket_handle;
+
+    // Define Socket
+    TEE_iSocket *const TEE_tcpSocket; /*= {
+        .protocolID = TEE_ISOCKET_PROTOCOLID_TCP,
+        .TEE_iSocketVersion = TEE_ISOCKET_VERSION
+    };*/
+    //TEE_tcpSocket->protocolID = TEE_ISOCKET_PROTOCOLID_TCP;
+    //TEE_tcpSocket->TEE_iSocketVersion = TEE_ISOCKET_VERSION;
+    uint32_t error_code;
+    res = (*TEE_tcpSocket->open)(tee_socket_handle, tcp_socket_setup,
+            error_code);
+
+
+    printf("%s\n", (char *) params[0].memref.buffer);
 
     return TEE_SUCCESS;
 }
