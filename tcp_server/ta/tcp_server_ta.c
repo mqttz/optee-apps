@@ -124,28 +124,23 @@ TEE_Result TA_tcp_socket(uint32_t param_types, TEE_Param params[4])
     // TCP Socket Set Up
     TEE_ipSocket_ipVersion ta_ip_version = TEE_IP_VERSION_4;
     TEE_tcpSocket_Setup *tcp_socket_setup;
+    tcp_socket_setup = TEE_Malloc(sizeof *tcp_socket_setup,
+            TEE_MALLOC_FILL_ZERO);
     tcp_socket_setup->ipVersion = ta_ip_version;
     tcp_socket_setup->server_addr = TA_SERVER_IP;
     tcp_socket_setup->server_port = TA_SERVER_PORT;
     TEE_iSocketHandle *tee_socket_handle;
+    tee_socket_handle = TEE_Malloc(sizeof *tee_socket_handle,
+            TEE_MALLOC_FILL_ZERO);
 
     // Define Socket
-    /*TEE_tcpSocket t; = {
-        .protocolID = TEE_ISOCKET_PROTOCOLID_TCP,
-        .TEE_iSocketVersion = TEE_ISOCKET_VERSION
-    };*/
-    //TEE_tcpSocket->protocolID = TEE_ISOCKET_PROTOCOLID_TCP;
-    //TEE_tcpSocket->TEE_iSocketVersion = TEE_ISOCKET_VERSION;
-    //TEE_tcpSocket->protocolID = TEE_ISOCKET_PROTOCOLID_TCP;
-    //TEE_tcpSocket->TEE_iSocketVersion = TEE_ISOCKET_VERSION;
     uint32_t error_code;
     res = (*TEE_tcpSocket->open)(tee_socket_handle, tcp_socket_setup,
-            error_code);
-    printf("Hello\n");
-    //res = (*TEE_tcpSocket->send)(tee_socket_handle, params[0].memref.buffer,
-    //        params[0].memref.size, 60);
-    //printf("Hello\n");
-    //res = (*TEE_tcpSocket->close)(tee_socket_handle);
+            &error_code);
+    res = (*TEE_tcpSocket->send)(tee_socket_handle, params[0].memref.buffer,
+            params[0].memref.size, 60);
+    // Fails at core/arch/arm/tee/pta_socket.c -> send
+    res = (*TEE_tcpSocket->close)(tee_socket_handle);
 
 
     printf("%s\n", (char *) params[0].memref.buffer);
