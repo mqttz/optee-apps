@@ -130,13 +130,16 @@ TEE_Result TA_tcp_socket(uint32_t param_types, TEE_Param params[4])
     tcp_socket_setup->server_addr = TA_SERVER_IP;
     tcp_socket_setup->server_port = TA_SERVER_PORT;
     TEE_iSocketHandle *tee_socket_handle;
+    // Measure time here
     tee_socket_handle = TEE_Malloc(sizeof *tee_socket_handle,
             TEE_MALLOC_FILL_ZERO);
 
     // Define Socket
     uint32_t error_code;
+    // Measure Time
     res = (*TEE_tcpSocket->open)(tee_socket_handle, tcp_socket_setup,
             &error_code);
+    // Measure Time
     res = (*TEE_tcpSocket->send)(tee_socket_handle, params[0].memref.buffer,
             params[0].memref.size, 60);
     // Fails at core/arch/arm/tee/pta_socket.c -> send
