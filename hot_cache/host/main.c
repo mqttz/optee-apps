@@ -374,9 +374,9 @@ int parse_arguments(int argc, char *argv[], mqttz_client *origin,
         // origin->data = malloc(sizeof *(origin->data) * (strlen(argv[3]) + 1));
         // memset(origin->data, '\0', (strlen(argv[3]) + 1));
         // strcpy(origin->data, argv[3]);
-        origin->data = malloc(sizeof *(origin->data) * (4000 + 1));
-        memset(origin->data, 'h', 4000 + 1);
-        origin->data[4000] = '\0';
+        origin->data = malloc(sizeof *(origin->data) * (int(argv[3]) + 1));
+        memset(origin->data, 'h', int(argv[3] + 1);
+        origin->data[int(argv[3])] = '\0';
         // Destination Client ID
         dest->cli_id = malloc(sizeof *(dest->cli_id) * (strlen(argv[4]) + 1));
         memset(dest->cli_id, '\0', (strlen(argv[4]) + 1));
@@ -575,6 +575,6 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
-//./optee_hot_cache 123123123123 1111111111111111 holaholaholahoholahola 123123123123
+//./optee_hot_cache 123123123123 1111111111111111 20 123123123123
 //./optee_save_key 123123123123 0 11111111111111111111111111111111
 //./optee_read_key 123123123123
