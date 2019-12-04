@@ -32,11 +32,11 @@ typedef struct mqttz_client {
     char *data;
 } mqttz_client;
 
-#define MQTTZ_MAX_MSG_SIZE              4096
+#define MQTTZ_MAX_MSG_SIZE              20096
 #define AES_IV_SIZE                     16
 #define AES_KEY_SIZE                    32
 // Benchmark Parameters
-#define NUMBER_TESTS                    100
+#define NUMBER_TESTS                    10
 #define NUMBER_WORLDS                   2
 #define KEY_MODES                       2
 #define KEY_IN_MEM                      0
