@@ -36,12 +36,12 @@
 
 #include <cache_benchmarking_ta.h>
 
-#define NUM_TESTS               100
+#define NUM_TESTS               10
 #define TA_AES_KEY_SIZE         32
 #define TA_MQTTZ_CLI_ID_SZ      12
-#define TOTAL_ELEMENTS          12//128 
+#define TOTAL_ELEMENTS          128 
 // To change every experiment
-#define CACHE_SIZE              6 // 12 64 128
+//#define CACHE_SIZE              6 // 12 64 128
 
 typedef struct Node {
     char *id;
@@ -193,7 +193,7 @@ Node* queue_pop(Queue *queue)
 int queue_push(Queue *queue, Node *node)
 {
     // FIFO policy for the time being
-    if (queue->size == CACHE_SIZE)
+    if (queue->size == queue->max_size)
         queue_pop(queue);
     if (queue->first != NULL)
     {
@@ -232,12 +232,10 @@ Node* cache_query(Hash *hash, Queue *queue, char *obj_id)
     if (reqPage == NULL)
     {
         // Cache Miss
-        // Load from Secure Storage FIXME FIXME TODO
-        // We do this instead for testing!
         char obj[TA_AES_KEY_SIZE + 1];
         get_key(obj_id, obj);
         reqPage = init_node(obj_id, obj);
-        if (queue->size == CACHE_SIZE)
+        if (queue->size == queue->max_size)
         {
             Node *tmp = queue_pop(queue);
             int tmp_index = atoi(tmp->id) % hash->capacity;
@@ -272,7 +270,7 @@ void print_cache_status(Hash *hash)
 {
     printf("-----------------------\n");
     printf("Current Hash Status:\n\t- Table Size: %i\n", hash->capacity);
-    printf("\t- Cache Size: %i\n\t- Elements:\n", CACHE_SIZE);
+    //printf("\t- Cache Size: %i\n\t- Elements:\n", CACHE_SIZE);
     unsigned int i;
     for (i = 0; i < hash->capacity; i++)
     {
@@ -376,16 +374,16 @@ static TEE_Result cache_benchmarking(void *session, uint32_t param_types,
     int times[TOTAL_ELEMENTS];
     int avg_times[NUM_TESTS];
     uint32_t exp_param_types = TEE_PARAM_TYPES(
-            TEE_PARAM_TYPE_NONE,
-            TEE_PARAM_TYPE_NONE,
+            TEE_PARAM_TYPE_VALUE_INPUT,
+            TEE_PARAM_TYPE_MEMREF_INOUT,
             TEE_PARAM_TYPE_NONE,
             TEE_PARAM_TYPE_NONE);
     if (param_types != exp_param_types)
         return TEE_ERROR_BAD_PARAMETERS;
-    Queue *queue = init_queue(CACHE_SIZE);
+    Queue *queue = init_queue(params[0].value.a);
     Hash *hash = init_hash(TOTAL_ELEMENTS);
     printf("Initialized Queue and Hash Table!\n");
-    fill_ss_and_cache(hash, queue, TOTAL_ELEMENTS, CACHE_SIZE);
+    fill_ss_and_cache(hash, queue, TOTAL_ELEMENTS, params[0].value.a);
     unsigned int i;
     for (i = 0; i < NUM_TESTS; i++)
     {
@@ -394,8 +392,16 @@ static TEE_Result cache_benchmarking(void *session, uint32_t param_types,
         printf("Finished experiment %i!\n", i);
     }
     print_cache_status(hash);
-    for (i = 0; i < NUM_TESTS; i++)
-        printf("%i\n", avg_times[i]);
+    for (i = 0; i < NUM_TESTS - 1; i++)
+        snprintf(params[1].memref.buffer,
+                 (sizeof(char) * strlen((char *) params[1].memref.buffer))
+                 + sizeof avg_times[i] + sizeof(char),
+                "%s%i,", (char *) params[1].memref.buffer, avg_times[i]);
+    snprintf(params[1].memref.buffer, 
+            (sizeof(char) * strlen((char *) params[1].memref.buffer)) +
+            sizeof avg_times[NUM_TESTS-1], "%s%i",
+            (char *) params[1].memref.buffer, 
+            avg_times[NUM_TESTS - 1]);
     //printf("Average: %f\n", avg(times, TOTAL_ELEMENTS));
     free_queue(queue);
     free_hash(hash);
