@@ -139,19 +139,26 @@ void terminate_tee_session(struct test_ctx *ctx)
 }
 
 
-TEEC_Result cache_benchmarking(struct test_ctx *ctx)
+TEEC_Result cache_benchmarking(struct test_ctx *ctx, int cache_size)
 {
     // Dummy
     TEEC_Operation op;
     uint32_t ori;
     TEEC_Result res;
     memset(&op, 0, sizeof op);
+    char *out_buffer;
+    out_buffer = (char *) malloc(1024);
+    memset(out_buffer, '\0', 1024);
     op.paramTypes = TEEC_PARAM_TYPES(
-            TEEC_NONE,
-            TEEC_NONE,
+            TEEC_VALUE_INPUT,
+            TEEC_MEMREF_TEMP_INOUT,
             TEEC_NONE,
             TEEC_NONE);
+    op.params[0].value.a = cache_size;
+    op.params[1].tmpref.buffer = out_buffer;
+    op.params[1].tmpref.size = 1024;
     res = TEEC_InvokeCommand(&ctx->sess, TA_CACHE_BENCHMARK, &op, &ori);
+    printf("Results: \n%s\n", op.params[1].tmpref.buffer);
     return res;
 }
 
@@ -159,9 +166,16 @@ int main(int argc, char *argv[])
 {
     printf("Starting Cache Benchmarking!\n");
 	struct test_ctx ctx;
-    prepare_tee_session(&ctx);
-    cache_benchmarking(&ctx);
-    terminate_tee_session(&ctx);
+    // Cache sizes: 12, 64, 128
+    int cache_size[3] = {12, 64, 128};
+    unsigned int i;
+    for (i = 0; i < 3; ++i)
+    {
+        prepare_tee_session(&ctx);
+        printf("Running w/ Cache Size: %i\n", cache_size[i]);
+        cache_benchmarking(&ctx, cache_size[i]);
+        terminate_tee_session(&ctx);
+    }
     printf("Finished Cache Benchmarking!\n");
 	return 0;
 }
