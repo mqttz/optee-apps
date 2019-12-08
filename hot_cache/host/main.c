@@ -36,7 +36,7 @@ typedef struct mqttz_client {
 #define AES_IV_SIZE                     16
 #define AES_KEY_SIZE                    32
 // Benchmark Parameters
-#define NUMBER_TESTS                    20 //100
+#define NUMBER_TESTS                    10
 #define NUMBER_WORLDS                   2
 #define KEY_MODES                       2
 #define KEY_IN_MEM                      0
@@ -407,9 +407,11 @@ int parse_arguments(int argc, char *argv[], mqttz_client *origin,
         // origin->data = malloc(sizeof *(origin->data) * (strlen(argv[3]) + 1));
         // memset(origin->data, '\0', (strlen(argv[3]) + 1));
         // strcpy(origin->data, argv[3]);
-        origin->data = malloc(sizeof *(origin->data) * (4000 + 1));
-        memset(origin->data, 'h', 4000 + 1);
-        origin->data[4000] = '\0';
+        int tmp_val = atoi(argv[3]);
+        printf("%i\n", tmp_val);
+        origin->data = malloc(sizeof *(origin->data) * (tmp_val + 1));
+        memset(origin->data, 'h', tmp_val + 1);
+        origin->data[tmp_val] = '\0';
         // Destination Client ID
         dest->cli_id = malloc(sizeof *(dest->cli_id) * (strlen(argv[4]) + 1));
         memset(dest->cli_id, '\0', (strlen(argv[4]) + 1));
