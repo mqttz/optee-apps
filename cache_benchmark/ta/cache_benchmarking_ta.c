@@ -393,10 +393,12 @@ static TEE_Result cache_benchmarking(void *session, uint32_t param_types,
     }
     print_cache_status(hash);
     for (i = 0; i < NUM_TESTS - 1; i++)
+        printf("%i\n", avg_times[i]);
         snprintf(params[1].memref.buffer,
                  (sizeof(char) * strlen((char *) params[1].memref.buffer))
                  + sizeof avg_times[i] + sizeof(char),
                 "%s%i,", (char *) params[1].memref.buffer, avg_times[i]);
+    printf("%i\n", avg_times[NUM_TESTS - 1]);
     snprintf(params[1].memref.buffer, 
             (sizeof(char) * strlen((char *) params[1].memref.buffer)) +
             sizeof avg_times[NUM_TESTS-1], "%s%i",
