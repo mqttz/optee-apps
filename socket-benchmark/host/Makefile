@@ -12,7 +12,7 @@ CFLAGS += -Wall -I../ta/include -I./include
 CFLAGS += -I$(TEEC_EXPORT)/include
 LDADD += -lteec -L$(TEEC_EXPORT)/lib -lm
 
-BINARY = optee_tcp_server
+BINARY = optee_socket_benchmark
 
 .PHONY: all
 all: $(BINARY)

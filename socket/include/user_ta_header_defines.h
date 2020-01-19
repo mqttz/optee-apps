@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Linaro Limited
+ * Copyright (c) 2016, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,24 +25,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * The name of this file must not be modified
- */
-
 #ifndef USER_TA_HEADER_DEFINES_H
 #define USER_TA_HEADER_DEFINES_H
 
-#include <tcp_server_ta.h>
+#include <ta_socket.h>
+#include <user_ta_header.h>
 
-#define TA_UUID				TA_TCP_SERVER_UUID
+#define TA_UUID TA_SOCKET_UUID
 
-#define TA_FLAGS			(TA_FLAG_EXEC_DDR | TA_FLAG_SINGLE_INSTANCE)
-#define TA_STACK_SIZE			(2 * 1024)
-#define TA_DATA_SIZE			(32 * 1024)
-
-#define TA_CURRENT_TA_EXT_PROPERTIES \
-    { "gp.ta.description", USER_TA_PROP_TYPE_STRING, \
-        "Establishing a TCP conversation with an external server." }, \
-    { "gp.ta.version", USER_TA_PROP_TYPE_U32, &(const uint32_t){ 0x0010 } }
+#define TA_FLAGS ( TA_FLAG_EXEC_DDR | TA_FLAG_MULTI_SESSION)
+#define TA_STACK_SIZE (2 * 1024)
+#define TA_DATA_SIZE (32 * 1024)
 
 #endif /*USER_TA_HEADER_DEFINES_H*/

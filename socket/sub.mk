@@ -1,2 +1,2 @@
 global-incdirs-y += include
-srcs-y += tcp_server_ta.c
+srcs-y += ta_entry.c

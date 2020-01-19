@@ -24,23 +24,25 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef __TCP_SERVER_H__
-#define __TCP_SERVER_H__
 
-/* UUID of the trusted application */
-#define TA_TCP_SERVER_UUID \
-		{ 0xab3e985c, 0xc096, 0x4d22, \
-			{ 0xb4, 0x60, 0x5d, 0x9c, 0x17, 0xd7, 0x07, 0x13 } }
 /*
- * TA_TCP_SOCKET - Create and send something using the secure socket API
- * param[0] (memref) ID used the identify the persistent object
- * param[1] (memref) Raw data dumped from the persistent object
- * param[2] unused
- * param[3] unused
+ * The name of this file must not be modified
  */
-#define TA_TCP_SOCKET                   0
 
-#define TA_SERVER_IP                    "10.0.2.2"
-#define TA_SERVER_PORT                  9999
+#ifndef USER_TA_HEADER_DEFINES_H
+#define USER_TA_HEADER_DEFINES_H
 
-#endif /* __SECURE_STORAGE_H__ */
+#include <socket_benchmark_ta.h>
+
+#define TA_UUID				TA_SOCKET_BENCHMARK_UUID
+
+#define TA_FLAGS			(TA_FLAG_EXEC_DDR | TA_FLAG_SINGLE_INSTANCE)
+#define TA_STACK_SIZE			(2 * 1024)
+#define TA_DATA_SIZE			(32 * 1024)
+
+#define TA_CURRENT_TA_EXT_PROPERTIES \
+    { "gp.ta.description", USER_TA_PROP_TYPE_STRING, \
+        "Benchmarking the Socket API in Op-TEE" }, \
+    { "gp.ta.version", USER_TA_PROP_TYPE_U32, &(const uint32_t){ 0x0010 } }
+
+#endif /*USER_TA_HEADER_DEFINES_H*/
