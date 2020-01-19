@@ -1,28 +1,59 @@
-#include <sdtio.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <tee_client_api.h>
 #include <socket_benchmark_ta.h>
-#include <tee_isocket.h>
-#include <tee_tcpsocket.h>
-#include <tee_udpsocket.h>
-#include <unistd.h>
-#include <__tee_tcpsocket_defines_extensions.h>
 
-#include "socket_benchmark_server.h"
-
-struct socket_handle {
-    uint64_t buf[2];
-    size_t blen;
+struct ta_ctx {
+    TEEC_Context ctx;
+    TEEC_Session sess;
 };
 
-static TEE_Result tee_socket_tcp_open(TEEC_Session *session, uint32_t ip_vers,
+struct socket_handle {
+    char *remote_ip;
+    int port;
+    size_t buffer_size;
+};
+
+static TEEC_Result prepare_tee_session(struct test_ctx *ctx)
+{
+	TEEC_UUID uuid = TA_SOCKET_BENCHMARK_UUID;
+	uint32_t origin;
+	TEEC_Result res;
+	/* Initialize a context connecting us to the TEE */
+	res = TEEC_InitializeContext(NULL, &ctx->ctx);
+	if (res != TEEC_SUCCESS)
+    {
+		errx(1, "TEEC_InitializeContext failed with code 0x%x", res);
+        return res;
+    }
+	/* Open a session with the TA */
+	res = TEEC_OpenSession(&ctx->ctx, &ctx->sess, &uuid,
+			       TEEC_LOGIN_PUBLIC, NULL, NULL, &origin);
+	if (res != TEEC_SUCCESS)
+    {
+		errx(1, "TEEC_Opensession failed with code 0x%x origin 0x%x",
+			res, origin);
+        return res;
+    }
+    return res;
+}
+
+static TEEC_Result terminate_tee_session(struct test_ctx *ctx)
+{
+	TEEC_CloseSession(&ctx->sess);
+	TEEC_FinalizeContext(&ctx->ctx);
+    return TEEC_SUCCESS;
+}
+
+static TEEC_Result tee_socket_tcp_open(TEEC_Session *session, uint32_t ip_vers,
         const char *addr, uint16_t port, struct socket_handle *handle,
         uint32_t *ret_orig, uint32_t *error);
 {
-    TEE_Result res = TEE_ERROR_GENERIC;
+    TEEC_Result res = TEEC_ERROR_GENERIC;
     TEEC_Operation op = TEEC_OPERATION_INITIALIZER;
     
     memset(handle, 0, sizeof *handle);
@@ -46,12 +77,12 @@ static TEE_Result tee_socket_tcp_open(TEEC_Session *session, uint32_t ip_vers,
     return res;
 }
 
-static TEE_Result socket_send(TEEC_Session *session,
+static TEEC_Result tee_socket_send(TEEC_Session *session,
 			      struct socket_handle *handle,
 			      const void *data, size_t *dlen,
 			      uint32_t timeout, uint32_t *ret_orig)
 {
-	TEE_Result res = TEE_ERROR_GENERIC;
+	TEEC_Result res = TEEC_ERROR_GENERIC;
 	TEEC_Operation op = TEEC_OPERATION_INITIALIZER;
 
 	op.params[0].tmpref.buffer = handle->buf;
@@ -70,12 +101,12 @@ static TEE_Result socket_send(TEEC_Session *session,
 	return res;
 }
 
-static TEE_Result socket_recv(TEEC_Session *session,
+static TEEC_Result tee_socket_recv(TEEC_Session *session,
 			      struct socket_handle *handle,
 			      void *data, size_t *dlen,
 			      uint32_t timeout, uint32_t *ret_orig)
 {
-	TEE_Result res = TEE_ERROR_GENERIC;
+	TEEC_Result res = TEEC_ERROR_GENERIC;
 	TEEC_Operation op = TEEC_OPERATION_INITIALIZER;
 
 	op.params[0].tmpref.buffer = handle->buf;
@@ -94,11 +125,11 @@ static TEE_Result socket_recv(TEEC_Session *session,
 	return res;
 }
 
-static TEE_Result socket_get_error(TEEC_Session *session,
+static TEEC_Result tee_socket_get_error(TEEC_Session *session,
 			      struct socket_handle *handle,
 			      uint32_t *proto_error, uint32_t *ret_orig)
 {
-	TEE_Result res = TEE_ERROR_GENERIC;
+	TEEC_Result res = TEEC_ERROR_GENERIC;
 	TEEC_Operation op = TEEC_OPERATION_INITIALIZER;
 
 	op.params[0].tmpref.buffer = handle->buf;
@@ -114,7 +145,7 @@ static TEE_Result socket_get_error(TEEC_Session *session,
 	return res;
 }
 
-static TEE_Result socket_close(TEEC_Session *session,
+static TEEC_Result socket_close(TEEC_Session *session,
 			      struct socket_handle *handle, uint32_t *ret_orig)
 {
 	TEEC_Operation op = TEEC_OPERATION_INITIALIZER;
@@ -128,11 +159,11 @@ static TEE_Result socket_close(TEEC_Session *session,
 	return TEEC_InvokeCommand(session, TA_SOCKET_CMD_CLOSE, &op, ret_orig);
 }
 
-static TEE_Result socket_ioctl(TEEC_Session *session,
+static TEEC_Result socket_ioctl(TEEC_Session *session,
 			      struct socket_handle *handle, uint32_t ioctl_cmd,
 			      void *data, size_t *dlen, uint32_t *ret_orig)
 {
-	TEE_Result res = TEE_ERROR_GENERIC;
+	TEEC_Result res = TEEC_ERROR_GENERIC;
 	TEEC_Operation op = TEEC_OPERATION_INITIALIZER;
 
 	op.params[0].tmpref.buffer = handle->buf;
@@ -151,9 +182,65 @@ static TEE_Result socket_ioctl(TEEC_Session *session,
 	return res;
 }
 
+int ree_tcp_socket_client(struct socket_handle *s_handle, char *buffer)
+{
+    int sock = 0;
+    struct sockaddr_in address;
+    struct sockaddr_in serv_addr;
+    int opt = 1;
+    int addrlen = sizeof(address);
+
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) { 
+        printf("Error creating Socket!\n"); 
+        return 1; 
+    } 
+    memset(&serv_addr, '0', sizeof(serv_addr)); 
+    serv_addr.sin_family = AF_INET; 
+    serv_addr.sin_port = htons(s_handle->port); 
+    // Convert IPv4 and IPv6 addresses from text to binary form 
+    if(inet_pton(AF_INET, s_handle->remote_ip, &serv_addr.sin_addr)<=0)  
+    { 
+        printf("\nInvalid address/ Address not supported \n"); 
+        return -1; 
+    } 
+    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) 
+    { 
+        printf("\nConnection Failed \n"); 
+        return -1; 
+    } 
+    //ree_tcp_client(sock, buffer);
+    strcpy(buffer, "Hello world from Qemu!\n");
+    send(sock, hello, strlen(buffer), 0);
+    close(sock);
+    return 0;
+}
+
 int main()
 {
-    TEEC_Session session = {};
-    struct socket_handle s_handle = {};
-    struct socket_server s_server = {};
+    TEEC_Result res;
+    struct ta_ctx ctx;
+    const size_t buf_size = 16 * 1024;
+    char *buf;
+
+    if (prepare_tee_session(&ctx) != TEEC_SUCCESS)
+    {
+        printf("Error initializing TEE Session!\n");
+        return 1;
+    }
+
+    struct socket_handle s_handle = {
+        .remote_ip = "10.0.2.2",
+        .port = 9998,
+        .buffer_size = 1024
+    };
+    buf = (char *) caloc(0, s_handle.buffer_size);
+    ree_tcp_socket_client(&s_handle, buf);
+
+    if (terminate_tee_session(&ctx) != TEEC_SUCCESS)
+    {
+        printf("Error terminating TEE Session!\n");
+        return 1;
+    }
+
+    return 0;
 }
