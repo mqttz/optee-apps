@@ -17,7 +17,7 @@ struct socket_handle {
     uint32_t ip_vers;
     char *addr;
     uint16_t port;
-    char *buf; // This buffer is used to store the TEE Socket Handle
+    char *buf;
     size_t buffer_size;
 };
 
@@ -38,7 +38,8 @@ static TEEC_Result prepare_tee_session(struct ta_ctx *t_ctx)
 			       TEEC_LOGIN_PUBLIC, NULL, NULL, &origin);
 	if (res != TEEC_SUCCESS)
     {
-		printf("TEEC_Opensession failed with code 0x%x origin 0x%x", res, origin);
+		errx(1, "TEEC_Opensession failed with code 0x%x origin 0x%x",
+			res, origin);
         return res;
     }
     return res;
@@ -72,25 +73,24 @@ static TEEC_Result tee_socket_tcp_open(struct ta_ctx *t_ctx,
     op.params[2].tmpref.buffer = handle->buf;
     op.params[2].tmpref.size = handle->buffer_size;
 
-    res = TEEC_InvokeCommand(&t_ctx->sess, TA_SOCKET_CMD_TCP_OPEN, &op, ret_orig);
+    res = TEEC_InvokeCommand(t_ctx->sess, TA_SOCKET_CMD_TCP_OPEN, &op, ret_orig);
 
     handle->buffer_size = op.params[2].tmpref.size;
     *error = op.params[3].value.a;
     return res;
 }
 
-
-static TEEC_Result tee_socket_tcp_send(struct ta_ctx *t_ctx,
+/*
+static TEEC_Result tee_socket_send(TEEC_Session *session,
 			      struct socket_handle *handle,
-			      const void *data, size_t *dlen)
+			      const void *data, size_t *dlen,
+			      uint32_t timeout, uint32_t *ret_orig)
 {
-	TEEC_Result res;
-	TEEC_Operation op;
-    uint32_t *ret_orig;
-    uint32_t timeout = 30;
+	TEEC_Result res = TEEC_ERROR_GENERIC;
+	TEEC_Operation op = TEEC_OPERATION_INITIALIZER;
 
 	op.params[0].tmpref.buffer = handle->buf;
-	op.params[0].tmpref.size = handle->buffer_size;
+	op.params[0].tmpref.size = handle->blen;
 	op.params[1].tmpref.buffer = (void *)data;
 	op.params[1].tmpref.size = *dlen;
 	op.params[2].value.a = timeout;
@@ -99,13 +99,12 @@ static TEEC_Result tee_socket_tcp_send(struct ta_ctx *t_ctx,
 					 TEEC_MEMREF_TEMP_INPUT,
 					 TEEC_VALUE_INOUT, TEEC_NONE);
 
-	res = TEEC_InvokeCommand(&t_ctx->sess, TA_SOCKET_CMD_SEND, &op, ret_orig);
+	res = TEEC_InvokeCommand(session, TA_SOCKET_CMD_SEND, &op, ret_orig);
 
 	*dlen = op.params[2].value.b;
 	return res;
 }
 
-/*
 static TEEC_Result tee_socket_recv(TEEC_Session *session,
 			      struct socket_handle *handle,
 			      void *data, size_t *dlen,
@@ -151,10 +150,10 @@ static TEEC_Result tee_socket_get_error(TEEC_Session *session,
 }
 */
 
-static TEEC_Result tee_socket_tcp_close(struct ta_ctx *t_ctx,
-        struct socket_handle *handle)
+static TEEC_Result tee_socket_tcp_close(struct socket_handle *handle,
+        struct ta_ctx *t_ctx)
 {
-	TEEC_Operation op;
+	TEEC_Operation op = TEEC_OPERATION_INITIALIZER;
     uint32_t *ret_orig;
 
 	op.params[0].tmpref.buffer = handle->buf;
@@ -163,7 +162,7 @@ static TEEC_Result tee_socket_tcp_close(struct ta_ctx *t_ctx,
 	op.paramTypes = TEEC_PARAM_TYPES(TEEC_MEMREF_TEMP_INPUT,
 					 TEEC_NONE, TEEC_NONE, TEEC_NONE);
 
-	return TEEC_InvokeCommand(&t_ctx->sess, TA_SOCKET_CMD_CLOSE, &op, ret_orig);
+	return TEEC_InvokeCommand(t_ctx->sess, TA_SOCKET_CMD_CLOSE, &op, ret_orig);
 }
 
 /*
@@ -246,14 +245,6 @@ int main()
     };
     //ree_tcp_socket_client(&s_handle, buf);
     if (tee_socket_tcp_open(&t_ctx, &s_handle) != TEEC_SUCCESS)
-    {
-        printf("Error opneing TCP Socket in the TEE!");
-        return 1;
-    }
-
-    char *data = "Hello world from the TEE!\n";
-    size_t data_sz = strlen(data);
-    if (tee_socket_tcp_send(&t_ctx, &s_handle, data, &data_sz) != TEEC_SUCCESS)
     {
         printf("Error opneing TCP Socket in the TEE!");
         return 1;
