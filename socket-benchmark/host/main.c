@@ -1,9 +1,11 @@
+#include <math.h>
 #include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <tee_client_api.h>
 #include <socket_benchmark_ta.h>
@@ -20,6 +22,30 @@ struct socket_handle {
     char *buf; // This buffer is used to store the TEE Socket Handle
     size_t buffer_size;
 };
+
+struct benchmark_times {
+    double *open_times;
+    double *close_times;
+    double *send_times;
+    int num_tests;
+};
+
+double avg(double *arr, int num_elements)
+{
+    double ret = 0.0;
+    uint16_t i;
+    for (i = 0; i < num_elements, i++)
+        ret += *(arr + i);
+    return ret / num_elements;
+}
+
+double stdev(double* arr, int num_elements)
+{
+    double sq_sum = 0.0;
+    for (int i = 0; i < num_elements; i++)
+        sq_sum += pow(*(arr + i), 2);
+    return sqrt(sq_sum / num_elements - pow(avg(arr, num_elements), 2));
+}
 
 static TEEC_Result prepare_tee_session(struct ta_ctx *t_ctx)
 {
@@ -223,11 +249,37 @@ int ree_tcp_socket_client(struct socket_handle *s_handle, char *buffer)
     return 0;
 }
 
+int benchmark(struct benchmark_times *times, struct socket_handle *handle)
+{
+    struct timeval t_ini, t_end;
+    char *data = "Hello world from the TEE!\n";
+    size_t data_sz = strlen(data);
+    unsigned int i;
+
+    for (i = 0; i < num_tests; i++)
+    {
+        if (tee_socket_tcp_open(&t_ctx, &s_handle) != TEEC_SUCCESS)
+        {
+            printf("Error opneing TCP Socket in the TEE!");
+            return 1;
+        }
+        if (tee_socket_tcp_send(&t_ctx, &s_handle, data, &data_sz) != TEEC_SUCCESS)
+        {
+            printf("Error opneing TCP Socket in the TEE!");
+            return 1;
+        }
+        if (tee_socket_tcp_close(&t_ctx, &s_handle) != TEEC_SUCCESS)
+        {
+            printf("Error opneing TCP Socket in the TEE!");
+            return 1;
+        }
+    }
+}
+
 int main()
 {
     TEEC_Result res;
     struct ta_ctx t_ctx;
-    const size_t buf_size = 16 * 1024;
     char *buf;
     buf = (char *) calloc(0, 1024);
 
@@ -244,26 +296,15 @@ int main()
         .buf = buf,
         .buffer_size = 1024
     };
+
+    struct benchmark_times tee_times = {
+        .open_times = (char *) calloc(0, 1000),
+        .close_times = (char *) calloc(0, 1000).
+        .send_times = (char *) calloc(0, 1000),
+        .num_tests = 1000
+    };
     //ree_tcp_socket_client(&s_handle, buf);
-    if (tee_socket_tcp_open(&t_ctx, &s_handle) != TEEC_SUCCESS)
-    {
-        printf("Error opneing TCP Socket in the TEE!");
-        return 1;
-    }
-
-    char *data = "Hello world from the TEE!\n";
-    size_t data_sz = strlen(data);
-    if (tee_socket_tcp_send(&t_ctx, &s_handle, data, &data_sz) != TEEC_SUCCESS)
-    {
-        printf("Error opneing TCP Socket in the TEE!");
-        return 1;
-    }
-
-    if (tee_socket_tcp_close(&t_ctx, &s_handle) != TEEC_SUCCESS)
-    {
-        printf("Error opneing TCP Socket in the TEE!");
-        return 1;
-    }
+    benchmark(&tee_times, &s_handle);
 
     if (terminate_tee_session(&t_ctx) != TEEC_SUCCESS)
     {

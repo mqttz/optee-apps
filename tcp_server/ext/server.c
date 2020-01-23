@@ -25,6 +25,7 @@ void func(int sockfd)
         memset(buff, '\0', MAX);
 
         // Read input and send message to client
+        /*
         while ((buff[n++] = getchar()) != '\n');
         write (sockfd, buff, sizeof(buff));
 
@@ -32,6 +33,7 @@ void func(int sockfd)
             printf("Server Exit...\n");
             break;
         }
+        */
     }
 }
 
