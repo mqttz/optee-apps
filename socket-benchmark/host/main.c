@@ -47,6 +47,29 @@ double stdev(double* arr, int num_elements)
     return sqrt(sq_sum / num_elements - pow(avg(arr, num_elements), 2));
 }
 
+int timeval_subtract(struct timeval *result, struct timeval *x, struct timeval *y)
+{
+  /* Perform the carry for the later subtraction by updating y. */
+  if (x->tv_usec < y->tv_usec) {
+    int nsec = (y->tv_usec - x->tv_usec) / 1000000 + 1;
+    y->tv_usec -= 1000000 * nsec;
+    y->tv_sec += nsec;
+  }
+  if (x->tv_usec - y->tv_usec > 1000000) {
+    int nsec = (x->tv_usec - y->tv_usec) / 1000000;
+    y->tv_usec += 1000000 * nsec;
+    y->tv_sec -= nsec;
+  }
+
+  /* Compute the time remaining to wait.
+     tv_usec is certainly positive. */
+  result->tv_sec = x->tv_sec - y->tv_sec;
+  result->tv_usec = x->tv_usec - y->tv_usec;
+
+  /* Return 1 if result is negative. */
+  return x->tv_sec < y->tv_sec;
+}
+
 static TEEC_Result prepare_tee_session(struct ta_ctx *t_ctx)
 {
 	TEEC_UUID uuid = TA_SOCKET_BENCHMARK_UUID;
@@ -252,26 +275,63 @@ int ree_tcp_socket_client(struct socket_handle *s_handle, char *buffer)
 int benchmark(struct ta_ctx *t_ctx, struct benchmark_times *times,
         struct socket_handle *s_handle)
 {
-    struct timeval t_ini, t_end;
-    char *data = "Hello world from the TEE!\n";
+    struct timeval t_ini, t_end, t_diff;
+    char *data = (char *) calloc(4 * 1024 + 1, sizeof(char));
+    memset((void *) data, 0x41, 4 * 1024);
+    data[4*1024] = "\0";
     size_t data_sz = strlen(data);
     unsigned int i;
 
     for (i = 0; i < times->num_tests; i++)
     {
+        if (prepare_tee_session(t_ctx) != TEEC_SUCCESS)
+        {
+            printf("Error initializing TEE Session!\n");
+            return 1;
+        }
+        gettimeofday(&t_ini, NULL);
         if (tee_socket_tcp_open(t_ctx, s_handle) != TEEC_SUCCESS)
         {
             printf("Error opneing TCP Socket in the TEE!");
             return 1;
         }
+        gettimeofday(&t_end, NULL);
+        if (timeval_subtract(&t_diff, &t_end, &t_ini))
+        {
+            printf("ERROR: Negative difference?!\n");
+            return 1;
+        }
+        times->open_times[i] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
+        gettimeofday(&t_ini, NULL);
         if (tee_socket_tcp_send(t_ctx, s_handle, data, &data_sz) != TEEC_SUCCESS)
         {
             printf("Error opneing TCP Socket in the TEE!");
             return 1;
         }
+        gettimeofday(&t_end, NULL);
+        if (timeval_subtract(&t_diff, &t_end, &t_ini))
+        {
+            printf("ERROR: Negative difference?!\n");
+            return 1;
+        }
+        times->send_times[i] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
+        gettimeofday(&t_ini, NULL);
         if (tee_socket_tcp_close(t_ctx, s_handle) != TEEC_SUCCESS)
         {
             printf("Error opneing TCP Socket in the TEE!");
+            return 1;
+        }
+        gettimeofday(&t_end, NULL);
+        if (timeval_subtract(&t_diff, &t_end, &t_ini))
+        {
+            printf("ERROR: Negative difference?!\n");
+            return 1;
+        }
+        times->close_times[i] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
+
+        if (terminate_tee_session(&t_ctx) != TEEC_SUCCESS)
+        {
+            printf("Error terminating TEE Session!\n");
             return 1;
         }
     }
@@ -282,13 +342,7 @@ int main()
     TEEC_Result res;
     struct ta_ctx t_ctx;
     char *buf;
-    buf = (char *) calloc(0, 1024);
-
-    if (prepare_tee_session(&t_ctx) != TEEC_SUCCESS)
-    {
-        printf("Error initializing TEE Session!\n");
-        return 1;
-    }
+    buf = (char *) calloc(1024, sizeof(char));
 
     struct socket_handle s_handle = {
         .ip_vers = 0,
@@ -298,19 +352,22 @@ int main()
         .buffer_size = 1024
     };
 
+    int num_tests = 1000;
     struct benchmark_times tee_times = {
-        .open_times = (double *) calloc(0, 1000),
-        .close_times = (double *) calloc(0, 1000),
-        .send_times = (double *) calloc(0, 1000),
-        .num_tests = 1000
+        .open_times = (double *) calloc(num_tests, sizeof(double)),
+        .close_times = (double *) calloc(num_tests, sizeof(double)),
+        .send_times = (double *) calloc(num_tests, sizeof(double)),
+        .num_tests = num_tests
     };
     //ree_tcp_socket_client(&s_handle, buf);
+    // TEE Benchmark. Time reported in miliseconds
     benchmark(&t_ctx, &tee_times, &s_handle);
-
-    if (terminate_tee_session(&t_ctx) != TEEC_SUCCESS)
+    printf("TEE Raw times: Open - Send - Close\n");
+    for (int i = 0; i < num_tests; i++)
     {
-        printf("Error terminating TEE Session!\n");
-        return 1;
+        printf("%s\t%s\t%s\n", tee_times.open_times[i],
+                tee_times.send_times[i],
+                tee_times.close_times[i]);
     }
 
     return 0;
