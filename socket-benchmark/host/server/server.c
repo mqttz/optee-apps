@@ -5,7 +5,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#define MAX         80
+#define MAX         8 * 1024
 #define PORT        9999
 //#define REMOTE_IP   "163.172.155.43"
 #define REMOTE_IP   "127.0.0.1"

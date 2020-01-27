@@ -284,6 +284,7 @@ int benchmark(struct ta_ctx *t_ctx, struct benchmark_times *times,
 
     for (i = 0; i < times->num_tests; i++)
     {
+        printf("Starting test #%u!\n", i);
         if (prepare_tee_session(t_ctx) != TEEC_SUCCESS)
         {
             printf("Error initializing TEE Session!\n");
@@ -328,8 +329,7 @@ int benchmark(struct ta_ctx *t_ctx, struct benchmark_times *times,
             return 1;
         }
         times->close_times[i] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
-
-        if (terminate_tee_session(&t_ctx) != TEEC_SUCCESS)
+        if (terminate_tee_session(t_ctx) != TEEC_SUCCESS)
         {
             printf("Error terminating TEE Session!\n");
             return 1;
