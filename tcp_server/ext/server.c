@@ -21,7 +21,7 @@ void func(int sockfd)
 
         // Read message from client and copy it in buffer
         read(sockfd, buff, sizeof(buff));
-        printf("From client: %s\t To client:", buff);
+        printf("%s\n", buff);
         memset(buff, '\0', MAX);
 
         // Read input and send message to client

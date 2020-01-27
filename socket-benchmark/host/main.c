@@ -34,7 +34,7 @@ double avg(double *arr, int num_elements)
 {
     double ret = 0.0;
     uint16_t i;
-    for (i = 0; i < num_elements, i++)
+    for (i = 0; i < num_elements; i++)
         ret += *(arr + i);
     return ret / num_elements;
 }
@@ -249,26 +249,27 @@ int ree_tcp_socket_client(struct socket_handle *s_handle, char *buffer)
     return 0;
 }
 
-int benchmark(struct benchmark_times *times, struct socket_handle *handle)
+int benchmark(struct ta_ctx *t_ctx, struct benchmark_times *times,
+        struct socket_handle *s_handle)
 {
     struct timeval t_ini, t_end;
     char *data = "Hello world from the TEE!\n";
     size_t data_sz = strlen(data);
     unsigned int i;
 
-    for (i = 0; i < num_tests; i++)
+    for (i = 0; i < times->num_tests; i++)
     {
-        if (tee_socket_tcp_open(&t_ctx, &s_handle) != TEEC_SUCCESS)
+        if (tee_socket_tcp_open(t_ctx, s_handle) != TEEC_SUCCESS)
         {
             printf("Error opneing TCP Socket in the TEE!");
             return 1;
         }
-        if (tee_socket_tcp_send(&t_ctx, &s_handle, data, &data_sz) != TEEC_SUCCESS)
+        if (tee_socket_tcp_send(t_ctx, s_handle, data, &data_sz) != TEEC_SUCCESS)
         {
             printf("Error opneing TCP Socket in the TEE!");
             return 1;
         }
-        if (tee_socket_tcp_close(&t_ctx, &s_handle) != TEEC_SUCCESS)
+        if (tee_socket_tcp_close(t_ctx, s_handle) != TEEC_SUCCESS)
         {
             printf("Error opneing TCP Socket in the TEE!");
             return 1;
@@ -298,13 +299,13 @@ int main()
     };
 
     struct benchmark_times tee_times = {
-        .open_times = (char *) calloc(0, 1000),
-        .close_times = (char *) calloc(0, 1000).
-        .send_times = (char *) calloc(0, 1000),
+        .open_times = (double *) calloc(0, 1000),
+        .close_times = (double *) calloc(0, 1000),
+        .send_times = (double *) calloc(0, 1000),
         .num_tests = 1000
     };
     //ree_tcp_socket_client(&s_handle, buf);
-    benchmark(&tee_times, &s_handle);
+    benchmark(&t_ctx, &tee_times, &s_handle);
 
     if (terminate_tee_session(&t_ctx) != TEEC_SUCCESS)
     {
