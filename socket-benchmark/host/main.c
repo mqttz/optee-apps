@@ -276,9 +276,10 @@ int benchmark(struct ta_ctx *t_ctx, struct benchmark_times *times,
         struct socket_handle *s_handle)
 {
     struct timeval t_ini, t_end, t_diff;
-    char *data = (char *) calloc(4 * 1024 + 1, sizeof(char));
-    memset((void *) data, 0x41, 4 * 1024);
-    data[4*1024] = "\0";
+//    char *data = (char *) calloc(4 * 1024 + 1, sizeof(char));
+//    memset((void *) data, 'A', 4 * 1024 * sizeof(char));
+//    data[4*1024] = "\0";
+    char *data = "Hello World!\n";   
     size_t data_sz = strlen(data);
     unsigned int i;
 
@@ -293,7 +294,7 @@ int benchmark(struct ta_ctx *t_ctx, struct benchmark_times *times,
         gettimeofday(&t_ini, NULL);
         if (tee_socket_tcp_open(t_ctx, s_handle) != TEEC_SUCCESS)
         {
-            printf("Error opneing TCP Socket in the TEE!");
+            printf("Error opneing TCP Socket in the TEE!\n");
             return 1;
         }
         gettimeofday(&t_end, NULL);
@@ -306,20 +307,20 @@ int benchmark(struct ta_ctx *t_ctx, struct benchmark_times *times,
         gettimeofday(&t_ini, NULL);
         if (tee_socket_tcp_send(t_ctx, s_handle, data, &data_sz) != TEEC_SUCCESS)
         {
-            printf("Error opneing TCP Socket in the TEE!");
+            printf("Error sending data from the TEE!\n");
             return 1;
         }
         gettimeofday(&t_end, NULL);
         if (timeval_subtract(&t_diff, &t_end, &t_ini))
         {
-            printf("ERROR: Negative difference?!\n");
+            printf("Error measuring time. Negative difference?!\n");
             return 1;
         }
         times->send_times[i] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
         gettimeofday(&t_ini, NULL);
         if (tee_socket_tcp_close(t_ctx, s_handle) != TEEC_SUCCESS)
         {
-            printf("Error opneing TCP Socket in the TEE!");
+            printf("Error closing TCP Socket in the TEE!\n");
             return 1;
         }
         gettimeofday(&t_end, NULL);
@@ -335,6 +336,7 @@ int benchmark(struct ta_ctx *t_ctx, struct benchmark_times *times,
             return 1;
         }
     }
+    return 0;
 }
 
 int main()
@@ -352,7 +354,7 @@ int main()
         .buffer_size = 1024
     };
 
-    int num_tests = 1000;
+    int num_tests = 5;
     struct benchmark_times tee_times = {
         .open_times = (double *) calloc(num_tests, sizeof(double)),
         .close_times = (double *) calloc(num_tests, sizeof(double)),
@@ -361,14 +363,27 @@ int main()
     };
     //ree_tcp_socket_client(&s_handle, buf);
     // TEE Benchmark. Time reported in miliseconds
-    benchmark(&t_ctx, &tee_times, &s_handle);
-    printf("TEE Raw times: Open - Send - Close\n");
+    if (benchmark(&t_ctx, &tee_times, &s_handle) != 0)
+    {
+        printf("Error running the benchmark! Exitting...\n");
+        return 1;
+    }
+    printf("TEE Raw times:\n - Open\t - Send\t - Close\n");
     for (int i = 0; i < num_tests; i++)
     {
-        printf("%s\t%s\t%s\n", tee_times.open_times[i],
+        printf("%f\t%f\t%f\n",
+                tee_times.open_times[i],
                 tee_times.send_times[i],
                 tee_times.close_times[i]);
     }
+    printf("\t   - Averages -\n");
+    printf("%f,%f\t%f,%f\t%f,%f\n",
+            avg(tee_times.open_times, num_tests),
+            stdev(tee_times.open_times, num_tests),
+            avg(tee_times.send_times, num_tests),
+            stdev(tee_times.send_times, num_tests),
+            avg(tee_times.close_times, num_tests),
+            stdev(tee_times.close_times, num_tests));
 
     return 0;
 }
