@@ -354,7 +354,7 @@ int main()
         .buffer_size = 1024
     };
 
-    int num_tests = 5;
+    int num_tests = 10;
     struct benchmark_times tee_times = {
         .open_times = (double *) calloc(num_tests, sizeof(double)),
         .close_times = (double *) calloc(num_tests, sizeof(double)),
