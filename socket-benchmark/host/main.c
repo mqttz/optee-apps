@@ -286,17 +286,23 @@ int benchmark(struct ta_ctx *t_ctx, struct benchmark_times *times,
     for (i = 0; i < times->num_tests; i++)
     {
         printf("Starting test #%u!\n", i);
+        memset((void *) s_handle->buf, '\0', 1024 * sizeof(char));
+        s_handle->buffer_size = 1024;
+
         if (prepare_tee_session(t_ctx) != TEEC_SUCCESS)
         {
             printf("Error initializing TEE Session!\n");
             return 1;
         }
+
         gettimeofday(&t_ini, NULL);
+
         if (tee_socket_tcp_open(t_ctx, s_handle) != TEEC_SUCCESS)
         {
             printf("Error opneing TCP Socket in the TEE!\n");
             return 1;
         }
+
         gettimeofday(&t_end, NULL);
         if (timeval_subtract(&t_diff, &t_end, &t_ini))
         {
@@ -305,11 +311,13 @@ int benchmark(struct ta_ctx *t_ctx, struct benchmark_times *times,
         }
         times->open_times[i] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
         gettimeofday(&t_ini, NULL);
+
         if (tee_socket_tcp_send(t_ctx, s_handle, data, &data_sz) != TEEC_SUCCESS)
         {
             printf("Error sending data from the TEE!\n");
             return 1;
         }
+
         gettimeofday(&t_end, NULL);
         if (timeval_subtract(&t_diff, &t_end, &t_ini))
         {
@@ -318,18 +326,23 @@ int benchmark(struct ta_ctx *t_ctx, struct benchmark_times *times,
         }
         times->send_times[i] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
         gettimeofday(&t_ini, NULL);
+        
+        /*
         if (tee_socket_tcp_close(t_ctx, s_handle) != TEEC_SUCCESS)
         {
             printf("Error closing TCP Socket in the TEE!\n");
             return 1;
         }
+        */
+
         gettimeofday(&t_end, NULL);
         if (timeval_subtract(&t_diff, &t_end, &t_ini))
         {
-            printf("ERROR: Negative difference?!\n");
+            printf("Error measuring time. Negative difference?!\n");
             return 1;
         }
         times->close_times[i] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
+
         if (terminate_tee_session(t_ctx) != TEEC_SUCCESS)
         {
             printf("Error terminating TEE Session!\n");
@@ -354,7 +367,7 @@ int main()
         .buffer_size = 1024
     };
 
-    int num_tests = 10;
+    int num_tests = 1;
     struct benchmark_times tee_times = {
         .open_times = (double *) calloc(num_tests, sizeof(double)),
         .close_times = (double *) calloc(num_tests, sizeof(double)),

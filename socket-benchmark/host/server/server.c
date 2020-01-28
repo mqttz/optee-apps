@@ -1,21 +1,29 @@
 #include <netinet/in.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
-#define MAX         8 * 1024
+#define MAX         80
 #define PORT        9999
 //#define REMOTE_IP   "163.172.155.43"
 #define REMOTE_IP   "127.0.0.1"
+
+static volatile int keep_running = 1;
+
+void intHandler(int dummy)
+{
+    keep_running = 0;
+}
 
 void func(int sockfd)
 {
     char buff[MAX];
     int n;
     // Infinite Loop
-    for (;;) {
+    while (keep_running) {
         memset(buff, '\0', MAX);
         n = 0;
 
@@ -45,6 +53,8 @@ int main (int arcg, char const *argv[])
     int addrlen = sizeof(address);
     char buffer[1024] = {0};
     char *hello =  "Hello from server";
+
+    signal(SIGINT, intHandler);
 
     // Creating Socket File Descriptor
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {

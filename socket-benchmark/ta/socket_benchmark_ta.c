@@ -26,6 +26,7 @@
  */
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <socket_benchmark_ta.h>
 #include <tee_internal_api.h>
@@ -93,6 +94,7 @@ static TEE_Result ta_entry_tcp_open(uint32_t param_types, TEE_Param params[4])
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	h.socket = TEE_tcpSocket;
+    // Error: 0xffff000e (TEE_ERROR_COMMUNICATION)
 	res = h.socket->open(&h.ctx, &setup, &params[3].value.a);
 	free(setup.server_addr);
 	if (res == TEE_SUCCESS) {
