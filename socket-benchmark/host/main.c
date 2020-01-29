@@ -276,9 +276,9 @@ int benchmark(struct ta_ctx *t_ctx, struct benchmark_times *times,
         struct socket_handle *s_handle)
 {
     struct timeval t_ini, t_end, t_diff;
-//    char *data = (char *) calloc(4 * 1024 + 1, sizeof(char));
-//    memset((void *) data, 'A', 4 * 1024 * sizeof(char));
-//    data[4*1024] = "\0";
+    char *data = (char *) calloc(4 * 1024 + 1, sizeof(char));
+    memset((void *) data, 'A', 4 * 1024 * sizeof(char));
+    data[4*1024] = "\0";
     char *data = "Hello World!\n";   
     size_t data_sz = strlen(data);
     unsigned int i;
@@ -327,13 +327,11 @@ int benchmark(struct ta_ctx *t_ctx, struct benchmark_times *times,
         times->send_times[i] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
         gettimeofday(&t_ini, NULL);
         
-        /*
         if (tee_socket_tcp_close(t_ctx, s_handle) != TEEC_SUCCESS)
         {
             printf("Error closing TCP Socket in the TEE!\n");
             return 1;
         }
-        */
 
         gettimeofday(&t_end, NULL);
         if (timeval_subtract(&t_diff, &t_end, &t_ini))
@@ -367,7 +365,7 @@ int main()
         .buffer_size = 1024
     };
 
-    int num_tests = 1;
+    int num_tests = 1000;
     struct benchmark_times tee_times = {
         .open_times = (double *) calloc(num_tests, sizeof(double)),
         .close_times = (double *) calloc(num_tests, sizeof(double)),
