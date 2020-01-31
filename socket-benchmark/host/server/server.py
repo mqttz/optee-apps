@@ -4,6 +4,7 @@ import sys
 
 # Create a TCP/IP socket
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+data_size = 100 * 1024
 
 # Bind the socket to the port
 server_address = ('127.0.0.1', 9999)
@@ -22,7 +23,7 @@ while True:
 
         # Receive the data in small chunks and retransmit it
         while True:
-            data = connection.recv(4*1024 + 1)
+            data = connection.recv(data_size + 1)
             print('received {!r}'.format(data))
             break
 

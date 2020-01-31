@@ -354,7 +354,7 @@ int ree_benchmark(struct benchmark_times *tcp_times,
 {
     char *data = (char *) calloc(4 * 1024 + 1, sizeof(char));
     memset((void *) data, 'A', 4 * 1024 * sizeof(char));
-    data[4*1024] = "\0";
+    data[4 * 1024] = "\0";
     size_t data_sz = strlen(data);
     unsigned int i;
 
@@ -389,7 +389,7 @@ int tee_benchmark(struct ta_ctx *t_ctx,
     struct timeval t_ini, t_end, t_diff;
     char *data = (char *) calloc(4 * 1024 + 1, sizeof(char));
     memset((void *) data, 'A', 4 * 1024 * sizeof(char));
-    data[4*1024] = "\0";
+    data[4 * 1024] = "\0";
     size_t data_sz = strlen(data);
     unsigned int i;
 
@@ -580,6 +580,31 @@ int main()
         printf("Error running the REE benchmark! Exitting...\n");
         return 1;
     }
+    FILE *log_file;
+    log_file = fopen("optee_socket_benchmark.log", "w+");
+    fprintf(log_file, "TEE (TCP/UDP) Times: Open/Send/Close -\n");
+    for (unsigned int i = 0; i < num_tests; i++)
+    {
+        fprintf(log_file, "%f,%f,%f\t%f,%f,%f\n",
+            tee_tcp_times.open_times[i],
+            tee_tcp_times.send_times[i],
+            tee_tcp_times.close_times[i],
+            tee_udp_times.open_times[i],
+            tee_udp_times.send_times[i],
+            tee_udp_times.close_times[i]);
+    }
+    fprintf(log_file, "REE (TCP/UDP) Times: Open/Send/Close -\n");
+    for (unsigned int i = 0; i < num_tests; i++)
+    {
+        fprintf(log_file, "%f,%f,%f\t%f,%f,%f\n",
+            ree_tcp_times.open_times[i],
+            ree_tcp_times.send_times[i],
+            ree_tcp_times.close_times[i],
+            ree_udp_times.open_times[i],
+            ree_udp_times.send_times[i],
+            ree_udp_times.close_times[i]);
+    }
+    fclose(log_file);
     printf("TEE Average (TCP/UDP) Times: Open/Send/Close -\n");
     printf("%f,%f\t%f,%f\t%f,%f\n",
             avg(tee_tcp_times.open_times, num_tests),

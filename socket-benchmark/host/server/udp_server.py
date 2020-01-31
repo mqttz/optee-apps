@@ -4,6 +4,7 @@ import sys
 
 # Create a TCP/IP socket
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+data_size = 4 * 1024
 
 # Bind the socket to the port
 server_address = ('127.0.0.1', 9998)
@@ -13,6 +14,6 @@ sock.bind(server_address)
 while True:
     # Wait for a connection
     print('waiting for a UDP connection')
-    data, client_address = sock.recvfrom(4*1024 + 1)
+    data, client_address = sock.recvfrom(data_size + 1)
     print('UDP connection from', client_address)
     print('received {!r}'.format(data))
