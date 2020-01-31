@@ -432,7 +432,7 @@ int tee_benchmark(struct ta_ctx *t_ctx,
         gettimeofday(&t_ini, NULL);
 
         int num_send = 1;
-        for (unsigned int j = 0; j < num_send; ++j)
+        for (unsigned int j = 0; j < num_send; j++)
         {
             if (tee_socket_send(t_ctx, s_handle, data, &data_sz) != TEEC_SUCCESS)
             {
@@ -471,11 +471,13 @@ int tee_benchmark(struct ta_ctx *t_ctx,
         }
     }
 
+
     for (i = 0; i < tcp_times->num_tests; i++)
     {
         printf("Starting TEE UDP test #%u!\n", i);
         memset((void *) s_handle->buf, '\0', 1024 * sizeof(char));
         s_handle->buffer_size = 1024;
+        data_sz = strlen(data);
 
         if (prepare_tee_session(t_ctx) != TEEC_SUCCESS)
         {
@@ -500,10 +502,14 @@ int tee_benchmark(struct ta_ctx *t_ctx,
         udp_times->open_times[i] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
         gettimeofday(&t_ini, NULL);
 
-        if (tee_socket_send(t_ctx, s_handle, data, &data_sz) != TEEC_SUCCESS)
+        int num_send = 1;
+        for (unsigned int j = 0; j < num_send; j++)
         {
-            printf("Error sending data from the TEE!\n");
-            return 1;
+            if (tee_socket_send(t_ctx, s_handle, data, &data_sz) != TEEC_SUCCESS)
+            {
+                printf("Error sending data from the TEE!\n");
+                return 1;
+            }
         }
 
         gettimeofday(&t_end, NULL);
@@ -611,7 +617,7 @@ int main()
     fprintf(log_file, "REE (TCP/UDP) Times: Open/Send/Close -\n");
     for (unsigned int i = 0; i < num_tests; i++)
     {
-        fprintf(log_file, "%f,%f,%f\t%f,%f,%f\n",
+        fprintf(log_file, "%f,%f,%f %f,%f,%f\n",
             ree_tcp_times.open_times[i],
             ree_tcp_times.send_times[i],
             ree_tcp_times.close_times[i],

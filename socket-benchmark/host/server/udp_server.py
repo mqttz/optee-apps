@@ -2,7 +2,7 @@
 import socket
 import sys
 
-# Create a TCP/IP socket
+# Create a UDP/IP socket
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 data_size = 1024 * 1024
 

@@ -18,13 +18,19 @@ while True:
     # Wait for a connection
     print('waiting for TCP a connection')
     connection, client_address = sock.accept()
-    try:
-        print('TCP connection from', client_address)
-        # Receive the data in small chunks and retransmit it
-        while True:
+    print('TCP connection from', client_address)
+    # Receive the data in small chunks and retransmit it
+    # while (num_send > 0):
+    while True:
+        try:
             data = connection.recv(data_size + 1)
-            print('received {!r}'.format(data))
+            if data:
+                print('received {!r}'.format(data))
+            else:
+                print("client disconnected")
+                connection.close()
+                break
+        except OSError:
+            print("client disconnected")
+            connection.close()
             break
-
-    finally:
-        connection.close()
