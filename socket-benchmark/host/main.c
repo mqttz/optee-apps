@@ -13,6 +13,9 @@
 #include <socket_benchmark_ta.h>
 #include <unistd.h> // for close
 
+#define OP_BENCHMARK        0
+#define TPUT_BENCHMARK      1
+
 struct ta_ctx {
     TEEC_Context ctx;
     TEEC_Session sess;
@@ -267,7 +270,9 @@ int ree_tcp_socket_client(struct socket_handle *s_handle,
     times->open_times[iter] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
     gettimeofday(&t_ini, NULL);
 
-    send(sock, data, strlen(data), 0);
+    int num_send = 1;
+    for (unsigned int j = 0; j < num_send; ++j)
+        send(sock, data, strlen(data), 0);
 
     gettimeofday(&t_end, NULL);
     if (timeval_subtract(&t_diff, &t_end, &t_ini))
@@ -322,8 +327,10 @@ int ree_udp_socket_client(struct socket_handle *s_handle,
     // Send
     gettimeofday(&t_ini, NULL);
 
-    sendto(sockfd, data, strlen(data), 0, (struct sockaddr*) NULL,
-            sizeof(servaddr)); 
+    int num_send = 1;
+    for (unsigned int j = 0; j < num_send; ++j)
+        sendto(sockfd, data, strlen(data), 0, (struct sockaddr*) NULL,
+                sizeof(servaddr)); 
 
     gettimeofday(&t_end, NULL);
     if (timeval_subtract(&t_diff, &t_end, &t_ini))
@@ -350,11 +357,12 @@ int ree_udp_socket_client(struct socket_handle *s_handle,
 
 int ree_benchmark(struct benchmark_times *tcp_times,
         struct benchmark_times *udp_times,
-        struct socket_handle *s_handle)
+        struct socket_handle *s_handle,
+        int benchmark_type)
 {
-    char *data = (char *) calloc(4 * 1024 + 1, sizeof(char));
-    memset((void *) data, 'A', 4 * 1024 * sizeof(char));
-    data[4 * 1024] = "\0";
+    char *data = (char *) calloc(1024 * 1024 + 1, sizeof(char));
+    memset((void *) data, 'A', 1024 * 1024 * sizeof(char));
+    data[1024 * 1024] = "\0";
     size_t data_sz = strlen(data);
     unsigned int i;
 
@@ -384,12 +392,13 @@ int ree_benchmark(struct benchmark_times *tcp_times,
 int tee_benchmark(struct ta_ctx *t_ctx,
         struct benchmark_times *tcp_times,
         struct benchmark_times *udp_times,
-        struct socket_handle *s_handle)
+        struct socket_handle *s_handle,
+        int benchmark_type)
 {
     struct timeval t_ini, t_end, t_diff;
-    char *data = (char *) calloc(4 * 1024 + 1, sizeof(char));
-    memset((void *) data, 'A', 4 * 1024 * sizeof(char));
-    data[4 * 1024] = "\0";
+    char *data = (char *) calloc(1024 * 1024 + 1, sizeof(char));
+    memset((void *) data, 'A', 1024 * 1024 * sizeof(char));
+    data[1024 * 1024] = "\0";
     size_t data_sz = strlen(data);
     unsigned int i;
 
@@ -422,10 +431,14 @@ int tee_benchmark(struct ta_ctx *t_ctx,
         tcp_times->open_times[i] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
         gettimeofday(&t_ini, NULL);
 
-        if (tee_socket_send(t_ctx, s_handle, data, &data_sz) != TEEC_SUCCESS)
+        int num_send = 1;
+        for (unsigned int j = 0; j < num_send; ++j)
         {
-            printf("Error sending data from the TEE!\n");
-            return 1;
+            if (tee_socket_send(t_ctx, s_handle, data, &data_sz) != TEEC_SUCCESS)
+            {
+                printf("Error sending data from the TEE!\n");
+                return 1;
+            }
         }
 
         gettimeofday(&t_end, NULL);
@@ -541,8 +554,8 @@ int main()
         .buffer_size = 1024
     };
 
-    int num_tests = 1000;
-    
+    // Different operations benchmark
+    int num_tests = 10;
     // TEE Benchmark. Time reported in miliseconds
     struct benchmark_times tee_tcp_times = {
         .open_times = (double *) calloc(num_tests, sizeof(double)),
@@ -556,7 +569,8 @@ int main()
         .send_times = (double *) calloc(num_tests, sizeof(double)),
         .num_tests = num_tests
     };
-    if (tee_benchmark(&t_ctx, &tee_tcp_times, &tee_udp_times, &s_handle) != 0)
+    if (tee_benchmark(&t_ctx, &tee_tcp_times, &tee_udp_times, &s_handle,
+                      OP_BENCHMARK) != 0)
     {
         printf("Error running the TEE benchmark! Exitting...\n");
         return 1;
@@ -575,7 +589,8 @@ int main()
         .send_times = (double *) calloc(num_tests, sizeof(double)),
         .num_tests = num_tests
     };
-    if (ree_benchmark(&ree_tcp_times, &ree_udp_times, &s_handle) != 0)
+    if (ree_benchmark(&ree_tcp_times, &ree_udp_times, &s_handle,
+                      OP_BENCHMARK) != 0)
     {
         printf("Error running the REE benchmark! Exitting...\n");
         return 1;
@@ -635,5 +650,8 @@ int main()
             stdev(ree_udp_times.send_times, num_tests),
             avg(ree_udp_times.close_times, num_tests),
             stdev(ree_udp_times.close_times, num_tests));
+
+    // Max. Throughput achivable
+    printf("Starting Max. Throughput Test\n");
     return 0;
 }
