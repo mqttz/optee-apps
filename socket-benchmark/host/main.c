@@ -559,7 +559,7 @@ int main()
 
     // Different operations benchmark
     int num_tests = 10;
-    int num_send = 1024;
+    int num_send = 128 * 1024;
     // TEE Benchmark. Time reported in miliseconds
     struct benchmark_times tee_tcp_times = {
         .open_times = (double *) calloc(num_tests, sizeof(double)),
