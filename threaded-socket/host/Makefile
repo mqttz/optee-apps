@@ -10,7 +10,7 @@ OBJS = main.o
 
 CFLAGS += -Wall -I../ta/include -I./include
 CFLAGS += -I$(TEEC_EXPORT)/include
-LDADD += -lteec -L$(TEEC_EXPORT)/lib -lm
+LDADD += -lteec -L$(TEEC_EXPORT)/lib -lm -pthread
 
 BINARY = optee_threaded_socket
 

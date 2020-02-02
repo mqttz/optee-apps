@@ -2,6 +2,7 @@
 #include <fcntl.h> // for open
 #include <math.h>
 #include <netinet/in.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,6 +16,7 @@
 
 #define OP_BENCHMARK        0
 #define TPUT_BENCHMARK      1
+#define NUM_THREADS         4
 
 struct ta_ctx {
     TEEC_Context ctx;
@@ -36,6 +38,17 @@ struct benchmark_times {
     double *send_times;
     int num_tests;
     int num_send;
+};
+
+struct thread_args {
+    struct benchmark_times *ree_tcp_times;
+    struct benchmark_times *ree_udp_times;
+    struct benchmark_times *tee_tcp_times;
+    struct benchmark_times *tee_udp_times;
+    struct socket_handle *handle;
+    char *data;
+    size_t data_sz;
+    int threadID;
 };
 
 double avg(double *arr, int num_elements)
@@ -354,33 +367,29 @@ int ree_udp_socket_client(struct socket_handle *s_handle,
     return 0;
 }
 
-int ree_benchmark(struct benchmark_times *tcp_times,
-        struct benchmark_times *udp_times,
-        struct socket_handle *s_handle,
-        int benchmark_type)
+int *ree_benchmark(void *thread_args)
 {
-    char *data = (char *) calloc(1 * 1024 + 1, sizeof(char));
-    memset((void *) data, 'A', 1 * 1024 * sizeof(char));
-    data[1 * 1024] = "\0";
-    size_t data_sz = strlen(data);
     unsigned int i;
-
+    struct thread_args *thread_data;
+    thread_data = (struct thread_args *) thread_args;
+    int num_tests = thread_data->ree_tcp_times->num_tests;
     // TCP
-    for (i = 0; i < tcp_times->num_tests; i++)
+    for (i = 0; i < num_tests; i++)
     {
         printf("Starting REE TCP test #%u!\n", i);
-        if (ree_tcp_socket_client(s_handle, tcp_times, data, i) != 0)
+        if (ree_tcp_socket_client(thread_args->handle, thread_args->ree_tcp_times,
+                                  thread_args->data, i) != 0)
         {
             printf("Error running REE TCP test!\n");
             return 1;
         }
     }
     // UDP
-    for (i = 0; i < udp_times->num_tests; i++)
+    for (i = 0; i < num_tests; i++)
     {
         printf("Starting REE UDP test #%u!\n", i);
-        if (ree_udp_socket_client(s_handle, udp_times, data, i) != 0)
-        {
+        if (ree_tcp_socket_client(thread_args->handle, thread_args->ree_udp_times,
+                                  thread_args->data, i) != 0)
             printf("Error running REE UDP test!\n");
             return 1;
         }
@@ -558,51 +567,87 @@ int main()
     };
 
     // Different operations benchmark
-    int num_tests = 10;
-    int num_send = 128 * 1024;
     // TEE Benchmark. Time reported in miliseconds
-    struct benchmark_times tee_tcp_times = {
-        .open_times = (double *) calloc(num_tests, sizeof(double)),
-        .close_times = (double *) calloc(num_tests, sizeof(double)),
-        .send_times = (double *) calloc(num_tests, sizeof(double)),
-        .num_tests = num_tests,
-        .num_send = num_send
-    };
-    struct benchmark_times tee_udp_times = {
-        .open_times = (double *) calloc(num_tests, sizeof(double)),
-        .close_times = (double *) calloc(num_tests, sizeof(double)),
-        .send_times = (double *) calloc(num_tests, sizeof(double)),
-        .num_tests = num_tests,
-        .num_send = num_send
-    };
+    /*
     if (tee_benchmark(&t_ctx, &tee_tcp_times, &tee_udp_times, &s_handle,
                       OP_BENCHMARK) != 0)
     {
         printf("Error running the TEE benchmark! Exitting...\n");
         return 1;
     }
+    */
 
     // REE Benchmark
-    struct benchmark_times ree_tcp_times = {
-        .open_times = (double *) calloc(num_tests, sizeof(double)),
-        .close_times = (double *) calloc(num_tests, sizeof(double)),
-        .send_times = (double *) calloc(num_tests, sizeof(double)),
-        .num_tests = num_tests,
-        .num_send = num_send
-    };
-    struct benchmark_times ree_udp_times = {
-        .open_times = (double *) calloc(num_tests, sizeof(double)),
-        .close_times = (double *) calloc(num_tests, sizeof(double)),
-        .send_times = (double *) calloc(num_tests, sizeof(double)),
-        .num_tests = num_tests,
-        .num_send = num_send
-    };
-    if (ree_benchmark(&ree_tcp_times, &ree_udp_times, &s_handle,
-                      OP_BENCHMARK) != 0)
+
+    // Initialize Thread Array
+    struct thread_args thread_args_array[NUM_THREADS];
+
+    char *data = (char *) calloc(1 * 1024 + 1, sizeof(char));
+    memset((void *) data, 'A', 1 * 1024 * sizeof(char));
+    data[1 * 1024] = "\0";
+    size_t data_sz = strlen(data);
+    int num_tests = 10;
+    for (unsigned int i = 0; i < NUM_THREADS; i++)
     {
-        printf("Error running the REE benchmark! Exitting...\n");
-        return 1;
+        struct benchmark_times tee_tcp_times = {
+            .open_times = (double *) calloc(num_tests, sizeof(double)),
+            .close_times = (double *) calloc(num_tests, sizeof(double)),
+            .send_times = (double *) calloc(num_tests, sizeof(double)),
+            .num_tests = num_tests,
+            .num_send = num_send
+        };
+        struct benchmark_times tee_udp_times = {
+            .open_times = (double *) calloc(num_tests, sizeof(double)),
+            .close_times = (double *) calloc(num_tests, sizeof(double)),
+            .send_times = (double *) calloc(num_tests, sizeof(double)),
+            .num_tests = num_tests,
+            .num_send = num_send
+        };
+        struct benchmark_times ree_tcp_times = {
+            .open_times = (double *) calloc(num_tests, sizeof(double)),
+            .close_times = (double *) calloc(num_tests, sizeof(double)),
+            .send_times = (double *) calloc(num_tests, sizeof(double)),
+            .num_tests = num_tests,
+            .num_send = num_send
+        };
+        struct benchmark_times ree_udp_times = {
+            .open_times = (double *) calloc(num_tests, sizeof(double)),
+            .close_times = (double *) calloc(num_tests, sizeof(double)),
+            .send_times = (double *) calloc(num_tests, sizeof(double)),
+            .num_tests = num_tests,
+            .num_send = num_send
+        };
+        thread_args_array[i] = struct thread_args {
+            .ree_tcp_times = &ree_tcp_times,
+            .ree_udp_times = &ree_udp_times,
+            .tee_tcp_times = &tee_tcp_times,
+            .tee_udp_times = &tee_udp_times,
+            .handle = &s_handle,
+            .data = data,
+            .data_sz = data_sz,
+            .threadID = i
+        };
     }
+
+    pthread_t threads[NUM_THREADS];
+    unsigned t;
+    int rc;
+    for (t = 0; t < NUM_THREADS; t++)
+    {
+        rc = pthread_create(&threads[t], NULL, ree_benchmark, (void *) &thread_args_array[t]);
+        if (rc)
+        {
+            printf("Error creating thread %i!\n", t);
+            return 1;
+        }
+    }
+    for (t = 0; t < NUM_THREADS; t++)
+    {
+        pthread_join(threads[t], NULL);
+    }
+    printf("Task done!");
+    pthread_exit(NULL);
+    /*
     FILE *log_file;
     log_file = fopen("optee_socket_benchmark.log", "w+");
     fprintf(log_file, "TEE (TCP/UDP) Times: Open/Send/Close -\n");
@@ -660,6 +705,7 @@ int main()
             stdev(ree_udp_times.close_times, num_tests));
 
     // Max. Throughput achivable
+    */
     printf("Starting Max. Throughput Test\n");
     return 0;
 }
