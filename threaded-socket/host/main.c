@@ -11,7 +11,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <tee_client_api.h>
-#include <socket_benchmark_ta.h>
+#include <threaded_socket_ta.h>
 #include <unistd.h> // for close
 
 #define OP_BENCHMARK        0
@@ -93,7 +93,7 @@ int timeval_subtract(struct timeval *result, struct timeval *x, struct timeval *
 
 static TEEC_Result prepare_tee_session(struct ta_ctx *t_ctx)
 {
-	TEEC_UUID uuid = TA_SOCKET_BENCHMARK_UUID;
+	TEEC_UUID uuid = TA_THREADED_SOCKET_UUID;
 	uint32_t origin;
 	TEEC_Result res;
 	/* Initialize a context connecting us to the TEE */
@@ -367,7 +367,7 @@ int ree_udp_socket_client(struct socket_handle *s_handle,
     return 0;
 }
 
-int *ree_benchmark(void *thread_args)
+void *ree_benchmark(void *thread_args)
 {
     unsigned int i;
     struct thread_args *thread_data;
@@ -377,24 +377,24 @@ int *ree_benchmark(void *thread_args)
     for (i = 0; i < num_tests; i++)
     {
         printf("Starting REE TCP test #%u!\n", i);
-        if (ree_tcp_socket_client(thread_args->handle, thread_args->ree_tcp_times,
-                                  thread_args->data, i) != 0)
+        if (ree_tcp_socket_client(thread_data->handle, thread_data->ree_tcp_times,
+                                  thread_data->data, i) != 0)
         {
             printf("Error running REE TCP test!\n");
-            return 1;
+            //return 1;
         }
     }
     // UDP
     for (i = 0; i < num_tests; i++)
     {
         printf("Starting REE UDP test #%u!\n", i);
-        if (ree_tcp_socket_client(thread_args->handle, thread_args->ree_udp_times,
-                                  thread_args->data, i) != 0)
+        if (ree_tcp_socket_client(thread_data->handle, thread_data->ree_udp_times,
+                                  thread_data->data, i) != 0)
             printf("Error running REE UDP test!\n");
-            return 1;
+            //return 1;
         }
     }
-    return 0;
+    //return 0;
 }
 
 int tee_benchmark(struct ta_ctx *t_ctx,
