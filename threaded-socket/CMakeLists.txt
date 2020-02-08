@@ -10,6 +10,7 @@ target_include_directories(${PROJECT_NAME}
 
 target_link_libraries (${PROJECT_NAME}
                PRIVATE teec
+               PRIVATE pthread
                PRIVATE m)
 
 install (TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_BINDIR})

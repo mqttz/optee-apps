@@ -36,16 +36,12 @@ struct benchmark_times {
     double *open_times;
     double *close_times;
     double *send_times;
-    int num_tests;
-    int num_send;
 };
 
 struct thread_args {
-    struct benchmark_times *ree_tcp_times;
-    struct benchmark_times *ree_udp_times;
-    struct benchmark_times *tee_tcp_times;
-    struct benchmark_times *tee_udp_times;
     struct socket_handle *handle;
+    int num_tests;
+    int num_send;
     char *data;
     size_t data_sz;
     int threadID;
@@ -246,16 +242,11 @@ static TEEC_Result tee_socket_close(struct ta_ctx *t_ctx,
 }
 
 int ree_tcp_socket_client(struct socket_handle *s_handle,
-        struct benchmark_times *times, char *data, int iter)
+        struct benchmark_times *times, int num_send, char *data, int iter)
 {
     int sock = 0;
-    struct timeval t_ini, t_end, t_diff;
-    struct sockaddr_in address;
     struct sockaddr_in serv_addr;
-    int opt = 1;
-    int addrlen = sizeof(address);
 
-    gettimeofday(&t_ini, NULL);
     // Open + Connect
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) { 
         printf("Error creating Socket!\n"); 
@@ -275,16 +266,9 @@ int ree_tcp_socket_client(struct socket_handle *s_handle,
         return -1; 
     } 
 
-    gettimeofday(&t_end, NULL);
-    if (timeval_subtract(&t_diff, &t_end, &t_ini))
-    {
-        printf("ERROR: Negative difference?!\n");
-        return 1;
-    }
-    times->open_times[iter] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
     gettimeofday(&t_ini, NULL);
 
-    for (unsigned int j = 0; j < times->num_send; ++j)
+    for (unsigned int j = 0; j < num_send; ++j)
         send(sock, data, strlen(data), 0);
 
     gettimeofday(&t_end, NULL);
@@ -293,7 +277,7 @@ int ree_tcp_socket_client(struct socket_handle *s_handle,
         printf("ERROR: Negative difference?!\n");
         return 1;
     }
-    times->send_times[iter] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
+    //times->send_times[iter] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
     gettimeofday(&t_ini, NULL);
 
     close(sock);
@@ -304,15 +288,15 @@ int ree_tcp_socket_client(struct socket_handle *s_handle,
         printf("ERROR: Negative difference?!\n");
         return 1;
     }
-    times->close_times[iter] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
+    //times->close_times[iter] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
 
     return 0;
 }
 
 int ree_udp_socket_client(struct socket_handle *s_handle,
-        struct benchmark_times *times, char *data, int iter)
+        struct benchmark_times *times, int num_send, char *data, int iter)
 {    
-    int sockfd, n; 
+    int sockfd; 
     struct timeval t_ini, t_end, t_diff;
     struct sockaddr_in servaddr; 
       
@@ -334,13 +318,13 @@ int ree_udp_socket_client(struct socket_handle *s_handle,
         printf("ERROR: Negative difference?!\n");
         return 1;
     }
-    times->open_times[iter] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
+    //times->open_times[iter] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
     gettimeofday(&t_ini, NULL);
   
     // Send
     gettimeofday(&t_ini, NULL);
 
-    for (unsigned int j = 0; j < times->num_send; ++j)
+    for (unsigned int j = 0; j < num_send; ++j)
         sendto(sockfd, data, strlen(data), 0, (struct sockaddr*) NULL,
                 sizeof(servaddr)); 
 
@@ -350,7 +334,7 @@ int ree_udp_socket_client(struct socket_handle *s_handle,
         printf("ERROR: Negative difference?!\n");
         return 1;
     }
-    times->send_times[iter] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
+    //times->send_times[iter] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
     gettimeofday(&t_ini, NULL);
       
     // Close
@@ -362,7 +346,7 @@ int ree_udp_socket_client(struct socket_handle *s_handle,
         printf("ERROR: Negative difference?!\n");
         return 1;
     }
-    times->close_times[iter] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
+    //times->close_times[iter] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
 
     return 0;
 }
@@ -372,13 +356,13 @@ void *ree_benchmark(void *thread_args)
     unsigned int i;
     struct thread_args *thread_data;
     thread_data = (struct thread_args *) thread_args;
-    int num_tests = thread_data->ree_tcp_times->num_tests;
+    int num_tests = thread_data->num_tests;
     // TCP
     for (i = 0; i < num_tests; i++)
     {
-        printf("Starting REE TCP test #%u!\n", i);
+        printf("Starting REE TCP test #%i from thread %i!\n", i, thread_data->threadID);
         if (ree_tcp_socket_client(thread_data->handle, thread_data->ree_tcp_times,
-                                  thread_data->data, i) != 0)
+                                  thread_data->num_send, thread_data->data, i) != 0)
         {
             printf("Error running REE TCP test!\n");
             //return 1;
@@ -388,8 +372,9 @@ void *ree_benchmark(void *thread_args)
     for (i = 0; i < num_tests; i++)
     {
         printf("Starting REE UDP test #%u!\n", i);
-        if (ree_tcp_socket_client(thread_data->handle, thread_data->ree_udp_times,
-                                  thread_data->data, i) != 0)
+        if (ree_udp_socket_client(thread_data->handle, thread_data->ree_udp_times,
+                                  thread_data->num_send, thread_data->data, i) != 0)
+        {
             printf("Error running REE UDP test!\n");
             //return 1;
         }
@@ -397,6 +382,7 @@ void *ree_benchmark(void *thread_args)
     //return 0;
 }
 
+/*
 int tee_benchmark(struct ta_ctx *t_ctx,
         struct benchmark_times *tcp_times,
         struct benchmark_times *udp_times,
@@ -549,22 +535,36 @@ int tee_benchmark(struct ta_ctx *t_ctx,
     }
     return 0;
 }
+*/
 
 int main()
 {
+    // Data & Param Initialization
     TEEC_Result res;
     struct ta_ctx t_ctx;
     char *buf;
     buf = (char *) calloc(1024, sizeof(char));
-
     struct socket_handle s_handle = {
         .ip_vers = 0,
         .addr = "10.0.2.2",
-        .tcp_port = 9999,
-        .udp_port = 9998,
+        .tcp_port = 9990,
+        .udp_port = 9980,
         .buf = buf,
         .buffer_size = 1024
     };
+    ree_tcp_times = (double *) calloc(4, sizeof(double)),
+    ree_udp_times = (double *) calloc(4, sizeof(double)),
+    tee_tcp_times = (double *) calloc(4, sizeof(double)),
+    tee_udp_times = (double *) calloc(4, sizeof(double)),
+    char *data = (char *) calloc(1 * 1024 + 1, sizeof(char));
+    memset((void *) data, 'A', 1 * 1024 * sizeof(char));
+    data[1 * 1024] = "\0";
+    size_t data_sz = strlen(data);
+    int num_tests = 1;
+    int *num_send = [4,3,2,1];
+    int *num_threads = [1,2,3,4];
+    double ree_tcp_times[4], ree_udp_times[4], tee_tcp_times[4], tee_udp_times[4];
+    struct timeval t_ini, t_end, t_diff;
 
     // Different operations benchmark
     // TEE Benchmark. Time reported in miliseconds
@@ -580,73 +580,51 @@ int main()
     // REE Benchmark
 
     // Initialize Thread Array
-    struct thread_args thread_args_array[NUM_THREADS];
 
-    char *data = (char *) calloc(1 * 1024 + 1, sizeof(char));
-    memset((void *) data, 'A', 1 * 1024 * sizeof(char));
-    data[1 * 1024] = "\0";
-    size_t data_sz = strlen(data);
-    int num_tests = 10;
-    for (unsigned int i = 0; i < NUM_THREADS; i++)
+    for (unsigned j = 0; j < 4 ++j)
     {
-        struct benchmark_times tee_tcp_times = {
-            .open_times = (double *) calloc(num_tests, sizeof(double)),
-            .close_times = (double *) calloc(num_tests, sizeof(double)),
-            .send_times = (double *) calloc(num_tests, sizeof(double)),
-            .num_tests = num_tests,
-            .num_send = num_send
-        };
-        struct benchmark_times tee_udp_times = {
-            .open_times = (double *) calloc(num_tests, sizeof(double)),
-            .close_times = (double *) calloc(num_tests, sizeof(double)),
-            .send_times = (double *) calloc(num_tests, sizeof(double)),
-            .num_tests = num_tests,
-            .num_send = num_send
-        };
-        struct benchmark_times ree_tcp_times = {
-            .open_times = (double *) calloc(num_tests, sizeof(double)),
-            .close_times = (double *) calloc(num_tests, sizeof(double)),
-            .send_times = (double *) calloc(num_tests, sizeof(double)),
-            .num_tests = num_tests,
-            .num_send = num_send
-        };
-        struct benchmark_times ree_udp_times = {
-            .open_times = (double *) calloc(num_tests, sizeof(double)),
-            .close_times = (double *) calloc(num_tests, sizeof(double)),
-            .send_times = (double *) calloc(num_tests, sizeof(double)),
-            .num_tests = num_tests,
-            .num_send = num_send
-        };
-        thread_args_array[i] = struct thread_args {
-            .ree_tcp_times = &ree_tcp_times,
-            .ree_udp_times = &ree_udp_times,
-            .tee_tcp_times = &tee_tcp_times,
-            .tee_udp_times = &tee_udp_times,
-            .handle = &s_handle,
-            .data = data,
-            .data_sz = data_sz,
-            .threadID = i
-        };
-    }
-
-    pthread_t threads[NUM_THREADS];
-    unsigned t;
-    int rc;
-    for (t = 0; t < NUM_THREADS; t++)
-    {
-        rc = pthread_create(&threads[t], NULL, ree_benchmark, (void *) &thread_args_array[t]);
-        if (rc)
+        printf("Starting experiment w/ %i threads and %i sends!\n",
+                num_threads[j], num_send[j]);
+        struct thread_args thread_args_array[num_threads[j]];
+        for (unsigned int i = 0; i < num_threads[j]; i++)
         {
-            printf("Error creating thread %i!\n", t);
+            thread_args_array[i] = (struct thread_args) {
+                .handle = &s_handle,
+                .num_tests = num_tests,
+                .num_send = num_send[j],
+                .data = data,
+                .data_sz = data_sz,
+                .threadID = i
+            };
+        }
+        pthread_t threads[num_threads[j]];
+        unsigned t;
+        int rc;
+        gettimeofday(&t_ini, NULL);
+        for (t = 0; t < num_threads; t++)
+        {
+            rc = pthread_create(&threads[t], NULL, ree_benchmark, (void *) &thread_args_array[t]);
+            if (rc)
+            {
+                printf("Error creating thread %i!\n", t);
+                return 1;
+            }
+            printf("Succesfully created thread %i!\n", t);
+        }
+        for (t = 0; t < NUM_THREADS; t++)
+        {
+            pthread_join(threads[t], NULL);
+        }
+        gettimeofday(&t_end, NULL);
+        if (timeval_subtract(&t_diff, &t_end, &t_ini))
+        {
+            printf("ERROR: Negative difference?!\n");
             return 1;
         }
+        ree_tcp_times[j] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
+        printf("Task done!\n");
+        pthread_exit(NULL);
     }
-    for (t = 0; t < NUM_THREADS; t++)
-    {
-        pthread_join(threads[t], NULL);
-    }
-    printf("Task done!");
-    pthread_exit(NULL);
     /*
     FILE *log_file;
     log_file = fopen("optee_socket_benchmark.log", "w+");
@@ -688,21 +666,22 @@ int main()
             stdev(tee_udp_times.send_times, num_tests),
             avg(tee_udp_times.close_times, num_tests),
             stdev(tee_udp_times.close_times, num_tests));
-    printf("REE Average (TCP/UDP) Times: Open/Send/Close -\n");
+    */
+    printf("------- REE Average (TCP/UDP) Times -------\n");
     printf("%f,%f\t%f,%f\t%f,%f\n",
-            avg(ree_tcp_times.open_times, num_tests),
-            stdev(ree_tcp_times.open_times, num_tests),
-            avg(ree_tcp_times.send_times, num_tests),
-            stdev(ree_tcp_times.send_times, num_tests),
-            avg(ree_tcp_times.close_times, num_tests),
-            stdev(ree_tcp_times.close_times, num_tests));
+            avg(ree_tcp_times, num_tests),
+            stdev(ree_tcp_times, num_tests),
+            avg(ree_tcp_times, num_tests),
+            stdev(ree_tcp_times, num_tests),
+            avg(ree_tcp_times, num_tests),
+            stdev(ree_tcp_times, num_tests));
     printf("%f,%f\t%f,%f\t%f,%f\n",
-            avg(ree_udp_times.open_times, num_tests),
-            stdev(ree_udp_times.open_times, num_tests),
-            avg(ree_udp_times.send_times, num_tests),
-            stdev(ree_udp_times.send_times, num_tests),
-            avg(ree_udp_times.close_times, num_tests),
-            stdev(ree_udp_times.close_times, num_tests));
+            avg(ree_udp_times, num_tests),
+            stdev(ree_udp_times, num_tests),
+            avg(ree_udp_times, num_tests),
+            stdev(ree_udp_times, num_tests),
+            avg(ree_udp_times, num_tests),
+            stdev(ree_udp_times, num_tests));
 
     // Max. Throughput achivable
     */
