@@ -436,7 +436,7 @@ int main()
     memset((void *) data, 'A', 1 * 1024 * sizeof(char));
     data[1 * 1024] = "\0";
     size_t data_sz = strlen(data);
-    int num_tests = 1000;
+    int num_tests = 10;
     int num_send[4] = {6,3,2,1};
     int num_threads[4] = {1,2,3,6};
     double ree_tcp_times[4], ree_udp_times[4], tee_tcp_times[4], tee_udp_times[4];
@@ -511,55 +511,58 @@ int main()
         }
         ree_udp_times[j] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
         // TEE TCP
-        printf("Running TEE TCP Tests...\n");
-        gettimeofday(&t_ini, NULL);
-        for (t = 0; t < num_threads[j]; t++)
+        if (j < 0)
         {
-            rc = pthread_create(&threads[t], NULL, tee_tcp_benchmark, 
-                                (void *) &thread_args_array[t]);
-            if (rc)
+            printf("Running TEE TCP Tests...\n");
+            gettimeofday(&t_ini, NULL);
+            for (t = 0; t < num_threads[j]; t++)
             {
-                printf("Error creating thread %i!\n", t);
+                rc = pthread_create(&threads[t], NULL, tee_tcp_benchmark, 
+                                    (void *) &thread_args_array[t]);
+                if (rc)
+                {
+                    printf("Error creating thread %i!\n", t);
+                    return 1;
+                }
+                printf("Succesfully created thread %i!\n", t);
+            }
+            for (t = 0; t < num_threads[j]; t++)
+            {
+                pthread_join(threads[t], NULL);
+            }
+            gettimeofday(&t_end, NULL);
+            if (timeval_subtract(&t_diff, &t_end, &t_ini))
+            {
+                printf("ERROR: Negative difference?!\n");
                 return 1;
             }
-            printf("Succesfully created thread %i!\n", t);
-        }
-        for (t = 0; t < num_threads[j]; t++)
-        {
-            pthread_join(threads[t], NULL);
-        }
-        gettimeofday(&t_end, NULL);
-        if (timeval_subtract(&t_diff, &t_end, &t_ini))
-        {
-            printf("ERROR: Negative difference?!\n");
-            return 1;
-        }
-        tee_tcp_times[j] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
-        // TEE UDP
-        printf("Running TEE UDP Tests...\n");
-        gettimeofday(&t_ini, NULL);
-        for (t = 0; t < num_threads[j]; t++)
-        {
-            rc = pthread_create(&threads[t], NULL, tee_udp_benchmark, 
-                                (void *) &thread_args_array[t]);
-            if (rc)
+            tee_tcp_times[j] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
+            // TEE UDP
+            printf("Running TEE UDP Tests...\n");
+            gettimeofday(&t_ini, NULL);
+            for (t = 0; t < num_threads[j]; t++)
             {
-                printf("Error creating thread %i!\n", t);
+                rc = pthread_create(&threads[t], NULL, tee_udp_benchmark, 
+                                    (void *) &thread_args_array[t]);
+                if (rc)
+                {
+                    printf("Error creating thread %i!\n", t);
+                    return 1;
+                }
+                printf("Succesfully created thread %i!\n", t);
+            }
+            for (t = 0; t < num_threads[j]; t++)
+            {
+                pthread_join(threads[t], NULL);
+            }
+            gettimeofday(&t_end, NULL);
+            if (timeval_subtract(&t_diff, &t_end, &t_ini))
+            {
+                printf("ERROR: Negative difference?!\n");
                 return 1;
             }
-            printf("Succesfully created thread %i!\n", t);
+            tee_udp_times[j] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
         }
-        for (t = 0; t < num_threads[j]; t++)
-        {
-            pthread_join(threads[t], NULL);
-        }
-        gettimeofday(&t_end, NULL);
-        if (timeval_subtract(&t_diff, &t_end, &t_ini))
-        {
-            printf("ERROR: Negative difference?!\n");
-            return 1;
-        }
-        tee_udp_times[j] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
         printf("Experiment done!\n");
     }
     printf("------- REE Average (TCP/UDP) Times -------\n");
