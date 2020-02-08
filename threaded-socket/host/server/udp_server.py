@@ -16,4 +16,4 @@ while True:
     print('waiting for a UDP connection')
     data, client_address = sock.recvfrom(data_size + 1)
     print('UDP connection from', client_address)
-    print('received {!r} from {}'.format(data, client_address))
+    print('received data from {}'.format(client_address))

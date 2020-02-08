@@ -13,7 +13,7 @@ class ClientThread(threading.Thread):
             try:
                 data = self.csocket.recv(2048)
                 if data:
-                    print('received data from {}'.format(data, self.address))
+                    print('received data from {}'.format(self.address))
                 else:
                     print("client disconnected")
                     self.csocket.close()
