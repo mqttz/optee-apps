@@ -24,7 +24,7 @@ class ClientThread(threading.Thread):
                 break
 
 LOCALHOST = "127.0.0.1"
-PORT = 9999
+PORT = 9990
 data_size = 1 * 1024
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

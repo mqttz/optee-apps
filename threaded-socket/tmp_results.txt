@@ -1,29 +1,43 @@
---------------------- NUM SEND = 1 ------------------------------
-TEE Average (TCP/UDP) Times: Open/Send/Close -
-16.547800,5.623298      10.999500,1.891004      4.746400,1.084470
-12.064900,1.205922      9.961900,0.960164       3.741300,0.446881
-REE Average (TCP/UDP) Times: Open/Send/Close -
-0.795000,0.307107       0.173900,0.071338       0.358400,0.261754
-0.118700,0.137210       0.128600,0.060639       0.053300,0.009100
---------------------- NUM SEND = 512 ----------------------------
-TEE Average (TCP/UDP) Times: Open/Send/Close -
-24.006900,13.204106     4870.522500,1562.878918 6.599100,4.247958
-10.258600,2.226980      2746.774300,163.603128  3.656100,1.523728
-REE Average (TCP/UDP) Times: Open/Send/Close -
-1.052600,0.642961       83.500800,25.642517     0.376900,0.261580
-0.396200,0.277222       55.689700,19.690231     0.328700,0.274486
---------------------- NUM SEND = 1024 ---------------------------
-TEE Average (TCP/UDP) Times: Open/Send/Close -
-16.479400,7.286140      8365.139100,566.388934  5.186600,0.825148
-11.486400,0.759693      7546.087100,67.881289   4.544700,0.377831
-REE Average (TCP/UDP) Times: Open/Send/Close -
-1.069600,0.394420       135.655000,25.409225    0.345200,0.116668
-0.204000,0.111299       49.943800,10.666613     0.136200,0.026355
---------------------- NUM SEND = 2048 ---------------------------
-TEE Average (TCP/UDP) Times: Open/Send/Close -
-14.901300,5.977399      15637.330100,145.176259 6.033500,2.187831
-11.839700,1.388418      14162.949200,177.941508 4.002000,0.379770
-REE Average (TCP/UDP) Times: Open/Send/Close -
-0.638900,0.376464       225.038600,37.053822    0.230700,0.080404
-0.184600,0.126069       92.219300,10.668052     0.125200,0.048029
+--------------- NUM MULT 1 ---------------
+------- REE Average (TCP/UDP) Times -------
+6.082100,4.601500,4.400900,4.043700
+1.750800,1.006100,0.586400,0.581800
+------- TEE Average (TCP/UDP) Times -------
+194.150400,199.194400,0.000000,0.000000
+192.175400,136.110300,0.000000,0.000000
+TEEC_Opensession failed with code 0xffff000d origin 0x3
+Error initializing TEE Session!
+TEEC_Opensession failed with code 0xffff000d origin 0x3
+Error initializing TEE Session!
+--------------- NUM MULT 10 ---------------
+------- REE Average (TCP/UDP) Times -------
+16.654900,17.534500,8.694700,8.259400
+5.918300,6.290100,2.986200,2.411100
+------- TEE Average (TCP/UDP) Times -------
+987.061100,640.821200,0.000000,0.000000
+1022.713900,623.518700,0.000000,0.000000
+[   63.714116] random: crng init done
+TEEC_Opensession failed with code 0xffff000d origin 0x3
+Error initializing TEE Session!
+TEEC_Opensession failed with code 0xffff000d origin 0x3
+Error initializing TEE Session!
+--------------- NUM MULT 100 ---------------
+------- REE Average (TCP/UDP) Times -------
+156.058700,91.156000,40.505700,51.851100
+62.468900,32.963500,17.236100,22.727700
+------- TEE Average (TCP/UDP) Times -------
+7513.861200,3947.886500,0.000000,0.000000
+6989.301300,3935.699300,0.000000,0.000000
+TEEC_Opensession failed with code 0xffff000d origin 0x3
+Error initializing TEE Session!
+Error closing TCP Socket in the TEE!
+TEEC_Opensession failed with code 0xffff000d origin 0x3
+Error initializing TEE Session!
+--------------- NUM MULT 1000 ---------------
+------- REE Average (TCP/UDP) Times -------
+1479.474800,1206.207600,489.296500,622.216600
+757.720100,489.776500,251.156000,252.605800
+------- TEE Average (TCP/UDP) Times -------
+68095.007300,11015.127400,0.000000,0.000000
+65385.941000,34657.964900,0.000000,0.000000
 
