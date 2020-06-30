@@ -426,8 +426,8 @@ int main()
     struct socket_handle s_handle = {
         .ip_vers = 0,
         .addr = "10.0.2.2",
-        .tcp_port = 9990,
-        .udp_port = 9980,
+        .tcp_port = 9999,
+        .udp_port = 9998,
         .buf = buf,
         .buffer_size = 1024
     };

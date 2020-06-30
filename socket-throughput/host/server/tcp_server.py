@@ -24,12 +24,12 @@ class ClientThread(threading.Thread):
                 break
 
 LOCALHOST = "127.0.0.1"
-PORT = 9990
+PORT = 9999
 data_size = 1 * 1024
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server.bind((LOCALHOST, PORT))
-print("Server started")
+print("Server started on {} port {}".format(LOCALHOST, PORT))
 print("Waiting for client request..")
 while True:
     server.listen(1)
