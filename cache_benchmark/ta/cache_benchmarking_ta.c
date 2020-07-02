@@ -36,7 +36,7 @@
 
 #include <cache_benchmarking_ta.h>
 
-#define NUM_TESTS               10
+#define NUM_TESTS               100
 #define TA_AES_KEY_SIZE         32
 #define TA_MQTTZ_CLI_ID_SZ      12
 #define TOTAL_ELEMENTS          128 
