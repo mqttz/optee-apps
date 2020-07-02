@@ -23,7 +23,7 @@ class ClientThread(threading.Thread):
                 self.csocket.close()
                 break
 
-LOCALHOST = "127.0.0.1"
+LOCALHOST = "192.168.1.34"
 PORT = 9999
 data_size = 1 * 1024
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

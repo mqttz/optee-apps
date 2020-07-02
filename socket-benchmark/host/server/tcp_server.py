@@ -17,7 +17,7 @@ class ClientThread(threading.Thread):
             self.csocket.send(bytes(msg,'UTF-8'))
         print ("Client at ", clientAddress , " disconnected...")
 
-LOCALHOST = "127.0.0.1"
+LOCALHOST = "192.168.1.34"
 PORT = 9999
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
