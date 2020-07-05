@@ -172,7 +172,7 @@ static TEEC_Result tee_socket_send(struct ta_ctx *t_ctx,
 	TEEC_Result res;
 	TEEC_Operation op;
     uint32_t *ret_orig;
-    uint32_t timeout = 30;
+    uint32_t timeout = 1000;
 
 	op.params[0].tmpref.buffer = handle->buf;
 	op.params[0].tmpref.size = handle->buffer_size;
@@ -469,6 +469,7 @@ int tee_benchmark(struct ta_ctx *t_ctx,
         }
     }
 
+    printf("Finished TEE TCP Benchmark!\n");
 
     for (i = 0; i < tcp_times->num_tests; i++)
     {
@@ -538,6 +539,9 @@ int tee_benchmark(struct ta_ctx *t_ctx,
             return 1;
         }
     }
+
+    printf("Finished TEE UDP Benchmark!\n");
+
     return 0;
 }
 
@@ -550,7 +554,7 @@ int main()
 
     struct socket_handle s_handle = {
         .ip_vers = 0,
-        .addr = "10.0.2.2",
+        .addr = "192.168.1.34",
         .tcp_port = 9999,
         .udp_port = 9998,
         .buf = buf,
@@ -558,8 +562,8 @@ int main()
     };
 
     // Different operations benchmark
-    int num_tests = 10;
-    int num_send = 128 * 1024;
+    int num_tests = 3;
+    int num_send = 512; //128 * 1024;
     // TEE Benchmark. Time reported in miliseconds
     struct benchmark_times tee_tcp_times = {
         .open_times = (double *) calloc(num_tests, sizeof(double)),

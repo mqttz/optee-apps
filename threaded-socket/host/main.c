@@ -181,7 +181,7 @@ static TEEC_Result tee_socket_send(struct ta_ctx *t_ctx,
 	TEEC_Result res;
 	TEEC_Operation op;
     uint32_t *ret_orig;
-    uint32_t timeout = 30;
+    uint32_t timeout = 120;
 
 	op.params[0].tmpref.buffer = handle->buf;
 	op.params[0].tmpref.size = handle->buffer_size;
@@ -425,7 +425,7 @@ int main()
     buf = (char *) calloc(1024, sizeof(char));
     struct socket_handle s_handle = {
         .ip_vers = 0,
-        .addr = "10.0.2.2",
+        .addr = "192.168.1.34",
         .tcp_port = 9999,
         .udp_port = 9998,
         .buf = buf,

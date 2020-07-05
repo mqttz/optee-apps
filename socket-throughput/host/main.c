@@ -172,7 +172,7 @@ static TEEC_Result tee_socket_send(struct ta_ctx *t_ctx,
 	TEEC_Result res;
 	TEEC_Operation op;
     uint32_t *ret_orig;
-    uint32_t timeout = 30;
+    uint32_t timeout = 1000;
 
 	op.params[0].tmpref.buffer = handle->buf;
 	op.params[0].tmpref.size = handle->buffer_size;
@@ -550,7 +550,7 @@ int main()
 
     struct socket_handle s_handle = {
         .ip_vers = 0,
-        .addr = "10.0.2.2",
+        .addr = "192.168.1.34",
         .tcp_port = 9999,
         .udp_port = 9998,
         .buf = buf,
@@ -559,7 +559,7 @@ int main()
 
     // Different operations benchmark
     int num_tests = 10;
-    int num_send[6] = {1, 2, 128, 1024, 2 * 1024, 128 * 1024};
+    int num_send[6] = {1, 512, 1024, 2 * 1024, 128 * 1024};
     for (unsigned int i = 0; i < 6; i++)
     {
         // TEE Benchmark. Time reported in miliseconds
