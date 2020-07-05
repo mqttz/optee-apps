@@ -554,7 +554,7 @@ int main()
 
     struct socket_handle s_handle = {
         .ip_vers = 0,
-        .addr = "192.168.1.34",
+        .addr = "10.0.2.2", //"192.168.1.34",
         .tcp_port = 9999,
         .udp_port = 9998,
         .buf = buf,
