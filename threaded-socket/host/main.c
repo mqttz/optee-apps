@@ -181,7 +181,7 @@ static TEEC_Result tee_socket_send(struct ta_ctx *t_ctx,
 	TEEC_Result res;
 	TEEC_Operation op;
     uint32_t *ret_orig;
-    uint32_t timeout = 120;
+    uint32_t timeout = 1200;
 
 	op.params[0].tmpref.buffer = handle->buf;
 	op.params[0].tmpref.size = handle->buffer_size;
@@ -437,14 +437,15 @@ int main()
     size_t data_sz = strlen(data);
     struct timeval t_ini, t_end, t_diff;
     int num_tests = 10;
-    int num_mult[4] = {1, 10, 100, 1000};
+    //int num_mult[4] = {1, 10, 100, 1000};
+    int num_mult[4] = {10, 10, 100, 1000};
     int rc;
-    for (unsigned int l = 0; l < 4; ++l)
+    for (unsigned int l = 0; l < 1; ++l) // FIXME changed this (from l < 4 -> l < 1)
     {
         int num_send[4] = {12 * num_mult[l], 6 * num_mult[l], 
                            4 * num_mult[l], 3 * num_mult[l]};
-        //int num_threads[4] = {1,2,3,4};
-        int num_threads[4] = {1,2,1,2};
+        int num_threads[4] = {1,2,3,4};
+        //int num_threads[4] = {1,2,1,2};
         double ree_tcp_times[4], ree_udp_times[4], tee_tcp_times[4], tee_udp_times[4];
         for (unsigned int j = 0; j < 4; ++j)
         {
