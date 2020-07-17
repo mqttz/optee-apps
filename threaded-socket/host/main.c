@@ -438,9 +438,9 @@ int main()
     struct timeval t_ini, t_end, t_diff;
     int num_tests = 10;
     //int num_mult[4] = {1, 10, 100, 1000};
-    int num_mult[4] = {10, 10, 100, 1000};
+    int num_mult[4] = {1, 10, 100, 1000};
     int rc;
-    for (unsigned int l = 0; l < 1; ++l) // FIXME changed this (from l < 4 -> l < 1)
+    for (unsigned int l = 0; l < 4; ++l) // FIXME changed this (from l < 4 -> l < 1)
     {
         int num_send[4] = {12 * num_mult[l], 6 * num_mult[l], 
                            4 * num_mult[l], 3 * num_mult[l]};
@@ -516,7 +516,7 @@ int main()
             }
             ree_udp_times[j] = t_diff.tv_sec * 1000 + t_diff.tv_usec / 1000.0;
             // TEE TCP
-            if (j < 2)
+            if (j < 4)
             {
                 //printf("Running TEE TCP Tests...\n");
                 gettimeofday(&t_ini, NULL);
