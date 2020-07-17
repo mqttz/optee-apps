@@ -440,11 +440,13 @@ int main()
     //int num_mult[4] = {1, 10, 100, 1000};
     int num_mult[4] = {1, 10, 100, 1000};
     int rc;
-    for (unsigned int l = 0; l < 4; ++l) // FIXME changed this (from l < 4 -> l < 1)
+    FILE *log_file;
+    log_file = fopen("optee_threaded_socket_benchmark.log", "w+");
+    for (unsigned int l = 0; l < 4; ++l)
     {
         int num_send[4] = {12 * num_mult[l], 6 * num_mult[l], 
                            4 * num_mult[l], 3 * num_mult[l]};
-        int num_threads[4] = {1,2,3,4};
+        int num_threads[4] = {1,2,3,1};
         //int num_threads[4] = {1,2,1,2};
         double ree_tcp_times[4], ree_udp_times[4], tee_tcp_times[4], tee_udp_times[4];
         for (unsigned int j = 0; j < 4; ++j)
@@ -593,6 +595,31 @@ int main()
                 tee_udp_times[1] / num_tests,
                 tee_udp_times[2] / num_tests,
                 tee_udp_times[3] / num_tests);
+        // Log to file as well due to verbose output in the rbpi
+        fprintf(log_file, "--------------- NUM MULT %i ---------------\n", num_mult[l]);
+        fprintf(log_file, "------- REE Average (TCP/UDP) Times -------\n");
+        fprintf(log_file, "%f,%f,%f,%f\n",
+                ree_tcp_times[0] / num_tests,
+                ree_tcp_times[1] / num_tests,
+                ree_tcp_times[2] / num_tests,
+                ree_tcp_times[3] / num_tests);
+        fprintf(log_file, "%f,%f,%f,%f\n",
+                ree_udp_times[0] / num_tests,
+                ree_udp_times[1] / num_tests,
+                ree_udp_times[2] / num_tests,
+                ree_udp_times[3] / num_tests);
+        fprintf(log_file, "------- TEE Average (TCP/UDP) Times -------\n");
+        fprintf("%f,%f,%f,%f\n",
+                tee_tcp_times[0] / num_tests,
+                tee_tcp_times[1] / num_tests,
+                tee_tcp_times[2] / num_tests,
+                tee_tcp_times[3] / num_tests);
+        fprintf(log_file, "%f,%f,%f,%f\n",
+                tee_udp_times[0] / num_tests,
+                tee_udp_times[1] / num_tests,
+                tee_udp_times[2] / num_tests,
+                tee_udp_times[3] / num_tests);
     }
+    fclose(log_file);
     return 0;
 }
