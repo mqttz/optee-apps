@@ -609,7 +609,7 @@ int main()
                 ree_udp_times[2] / num_tests,
                 ree_udp_times[3] / num_tests);
         fprintf(log_file, "------- TEE Average (TCP/UDP) Times -------\n");
-        fprintf("%f,%f,%f,%f\n",
+        fprintf(log_file, "%f,%f,%f,%f\n",
                 tee_tcp_times[0] / num_tests,
                 tee_tcp_times[1] / num_tests,
                 tee_tcp_times[2] / num_tests,
